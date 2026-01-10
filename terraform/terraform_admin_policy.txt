@@ -1,0 +1,28 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowTerraformToManageThisPolicy",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetPolicy",
+                "iam:GetPolicyVersion",
+                "iam:CreatePolicy",
+                "iam:CreatePolicyVersion",
+                "iam:DeletePolicyVersion",
+                "iam:ListPolicyVersions",
+                "iam:DeletePolicy"
+            ],
+            "Resource": "arn:aws:iam::552738622317:policy/athena-glue-dbt-policy" #change the account id, before :policy
+        },
+        {
+            "Sid": "AllowTerraformToAttachThePolicyToItself",
+            "Effect": "Allow",
+            "Action": [
+                "iam:AttachUserPolicy",
+                "iam:DetachUserPolicy"
+            ],
+            "Resource": "arn:aws:iam::552738622317:user/terraform-aws" #change the account id, before :policy
+        }
+    ]
+}
