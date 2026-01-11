@@ -2,6 +2,7 @@
 target/
 dbt_packages/
 logs/
+**/*.egg-info/
 
 **/__pycache__/
 src/loader/__pycache__/
