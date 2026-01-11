@@ -112,16 +112,19 @@ def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=N
     """
     logging.info(f"Writing data to Delta Lake at {path} with partitions {partition_list}")
     try:
-        object_data.write \
-            .format("delta") \
-            .option("overwriteSchema", "true") \
-            .mode("overwrite") \
-            .save(path) \
-            .partitionBy(partition_list) if partition_list else object_data.write \
-            .format("delta") \
-            .option("overwriteSchema", "true") \
-            .mode("overwrite") \
-            .save(path)
+        if partition_list:
+            object_data.write \
+                .format("delta") \
+                .option("overwriteSchema", "true") \
+                .mode("overwrite") \
+                .save(path) \
+                .partitionBy(partition_list) 
+        else:
+            object_data.write \
+                .format("delta") \
+                .option("overwriteSchema", "true") \
+                .mode("overwrite") \
+                .save(path)
         logging.info(f"Data successfully written to Delta Lake at {path}")
     except Exception as e:
         logging.error(f"Failed to write data to Delta Lake at {path}: {e}")
