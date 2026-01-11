@@ -100,13 +100,12 @@ def read_file_from_s3(bucket_name: str, s3_key: str, filename: str) -> bytes:
         logging.error(f"Failed to read {filename} from S3: {e}")
         raise
 
-def write_data_into_s3(path: str, object_data: DataFrame, storage_options: dict, partition_list: list=None) -> None:
+def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=None) -> None:
     """
         Write data into S3 in Delta Lake format.
         Args:
             path (str): The S3 path where the data will be written.
             object_data (DataFrame): The Spark DataFrame to write.
-            storage_options (dict): The storage options for S3 access.
             partition_list (list, optional): List of columns to partition the data by.
         Returns:
             None

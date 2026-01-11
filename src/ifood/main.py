@@ -1,7 +1,7 @@
 import logging
 from ifood.api.fetch_data import fetch_data_from_source
 from ifood.aws.s3_bucket import check_file_exists_in_s3, download_file_to_s3, read_file_from_s3, write_data_into_s3
-from ifood.aws.credentials import get_aws_credentials, create_deltalake_storage_options
+from ifood.aws.credentials import get_aws_credentials
 from ifood.vars import endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit
@@ -52,14 +52,8 @@ def transform_data(spark: SparkSession, data: str, s3_path: str):
     logging.info(f"DataFrame loaded from {s3_path} with {df.count()} records.")
     df.show(5, truncate=False)
     df.printSchema()
-    aws_secrets = get_aws_credentials(aws_profile_name)
-    storage_options = create_deltalake_storage_options(
-        aws_secrets['aws_access_key_id'],
-        aws_secrets['aws_secret_access_key'],
-        aws_secrets['region']
-    )
     delta_path = f"s3a://{s3_path}/{data.split('/')[-2]}"
-    write_data_into_s3(delta_path, df, storage_options, partition_list=["source_date"])
+    write_data_into_s3(delta_path, df, partition_list=["source_date"])
     return df
 
 def main(spark: SparkSession):
