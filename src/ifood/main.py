@@ -1,9 +1,8 @@
 import logging
 from ifood.api.fetch_data import fetch_data_from_source
 from ifood.aws.s3_bucket import check_file_exists_in_s3, download_file_to_s3, read_file_from_s3, write_data_into_s3
-from ifood.aws.credentials import get_aws_credentials
-from ifood.vars import endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket
-from pyspark.sql import SparkSession
+from ifood.vars import endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket, s3_bucket, selected_columns
+from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import lit
 from pyspark.sql.functions import current_date
 
@@ -35,7 +34,7 @@ def extract_data(endpoint: str, filename: str, date: str) -> str:
 
 def transform_data(spark: SparkSession, data: str, s3_path: str):
     """
-        Transform data stored in S3 using Spark.
+        Transform the extracted data and write it to S3 in Delta Lake format.
         Args:
             spark (SparkSession): The Spark session object.
             data (str): The data to transform.
@@ -56,9 +55,26 @@ def transform_data(spark: SparkSession, data: str, s3_path: str):
     write_data_into_s3(delta_path, df, partition_list=["source_date"])
     return df
 
+def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
+    """
+        Load transformed data into S3 in Delta Lake format.
+        Args:
+            df (DataFrame): The transformed Spark DataFrame.
+            s3_path (str): The S3 path where the data will be stored.
+        Returns:
+            None
+    """
+    logging.info(f"Loading data into Delta Lake format at {s3_path}")
+    existing = set(df.columns)
+    valid_cols = [c for c in columns if c in existing]
+    if valid_cols:
+        df = df.select(valid_cols)
+    write_data_into_s3(s3_path, df)
+    logging.info("Data loading completed.")
+
 def main(spark: SparkSession):
     """
-        Main function to fetch data from source and store it in S3.
+        Main function to orchestrate the ETL process.
         Args:
             spark (SparkSession): The Spark session object.
         Returns:
@@ -79,6 +95,10 @@ def main(spark: SparkSession):
             logging.info(f"Writing transformed data to Delta Lake format in S3 bucket {s3_stg_bucket}...")
             df = transform_data(spark, data, s3_stg_bucket)
             logging.info("Data written to Delta Lake format in S3 successfully.\n")
+
+            logging.info(f"Loading final data into S3 bucket {s3_bucket}...")
+            load_data(df, s3_bucket, selected_columns)
+            logging.info("Data loading to S3 completed successfully.")
 
 if __name__ == "__main__":
 
@@ -101,6 +121,9 @@ if __name__ == "__main__":
                         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
                         .config("spark.hadoop.fs.s3a.profile", aws_profile_name) \
                         .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
+                        .config("spark.driver.memory", "6g") \
+                        .config("spark.driver.maxResultSize", "2g") \
+                        .config("spark.sql.shuffle.partitions", "8") \
                         .getOrCreate()
     
     main(spark)

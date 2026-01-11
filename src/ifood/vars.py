@@ -22,3 +22,11 @@ headers = {
     "Accept-Encoding": "identity",
     "Connection": "keep-alive",
 }
+
+selected_columns = [
+    "VendorID",
+    "tpep_pickup_datetime",
+    "tpep_dropoff_datetime",
+    "passenger_count",
+    "total_amount"
+]
