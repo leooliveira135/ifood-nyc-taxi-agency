@@ -28,5 +28,8 @@ selected_columns = [
     "tpep_pickup_datetime",
     "tpep_dropoff_datetime",
     "passenger_count",
-    "total_amount"
+    "total_amount",
+    "ingestion_date",
+    "data_source",
+    "source_date"
 ]

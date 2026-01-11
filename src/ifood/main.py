@@ -3,7 +3,7 @@ from ifood.api.fetch_data import fetch_data_from_source
 from ifood.aws.s3_bucket import check_file_exists_in_s3, download_file_to_s3, read_file_from_s3, write_data_into_s3
 from ifood.vars import endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket, s3_bucket, selected_columns
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import lit
+from pyspark.sql.functions import lit, col
 from pyspark.sql.functions import current_date
 
 def extract_data(endpoint: str, filename: str, date: str) -> str:
@@ -69,7 +69,11 @@ def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
     valid_cols = [c for c in columns if c in existing]
     if valid_cols:
         df = df.select(valid_cols)
-    write_data_into_s3(s3_path, df)
+    if 'VendorID' in valid_cols:
+        df = df.withColumn("VendorID", col("VendorID").cast("integer").alias("VendorID"))
+    table_name = df.select("data_source").distinct().collect()[0][0].split('/')[-1].split('.')[0]
+    delta_path = f"s3a://{s3_path}/{'_'.join(table_name.split('_')[0:2])}/{table_name.split('_')[-1].replace('-','_')}"
+    write_data_into_s3(delta_path, df)
     logging.info("Data loading completed.")
 
 def main(spark: SparkSession):
