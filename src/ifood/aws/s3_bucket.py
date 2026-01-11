@@ -117,13 +117,13 @@ def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=N
                 .format("delta") \
                 .option("overwriteSchema", "true") \
                 .mode("overwrite") \
-                .save(path) \
-                .partitionBy(partition_list) 
+                .partitionBy(*partition_list) \
+                .save(path)
         else:
             object_data.write \
                 .format("delta") \
                 .option("overwriteSchema", "true") \
-                .mode("overwrite") \
+                .mode("append") \
                 .save(path)
         logging.info(f"Data successfully written to Delta Lake at {path}")
     except Exception as e:
