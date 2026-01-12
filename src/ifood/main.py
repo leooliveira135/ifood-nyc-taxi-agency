@@ -165,7 +165,7 @@ if __name__ == "__main__":
                         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
                         .config("spark.hadoop.fs.s3a.profile", aws_profile_name) \
                         .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
-                        .config("spark.driver.memory", "6g") \
+                        .config("spark.driver.memory", "4g") \
                         .config("spark.driver.maxResultSize", "2g") \
                         .config("spark.sql.shuffle.partitions", "8") \
                         .getOrCreate()

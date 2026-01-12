@@ -37,3 +37,5 @@ selected_columns = [
 glue_database_stg = "ifood_nyc_taxi_agency_stg"
 glue_database = "ifood_nyc_taxi_agency"
 aws_glue_role = "glue-crawler-role"
+
+athena_output_queries = "s3://ifood-nyc-taxi-agency/athena/"
