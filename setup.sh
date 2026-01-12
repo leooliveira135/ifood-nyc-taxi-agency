@@ -67,3 +67,6 @@ pyenv virtualenv 3.11.6 ifood
 pyenv activate ifood
 
 sudo dnf5 install -y bzip2-devel sqlite-devel readline-devel gdbm-devel libdb-devel libuuid-devel tk-devel
+
+pip install --upgrade pip
+pip install -r $project_path/src/requirements.txt
