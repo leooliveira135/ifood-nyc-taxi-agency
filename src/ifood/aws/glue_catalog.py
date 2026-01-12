@@ -55,8 +55,10 @@ def create_glue_crawler(crawler_name: str, database_name: str, s3_path: str, aws
             DatabaseName=database_name,
             Targets={
                 'S3Targets': [
-                    {'Path': s3_path.replace("s3a://", "s3://")},
-                    {'Exclusions': ['**/_delta_log/**']}
+                    {
+                        'Path': s3_path.replace("s3a://", "s3://"),
+                        'Exclusions': ['**/_delta_log/**']
+                    }
                 ]
             }
         )

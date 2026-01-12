@@ -56,7 +56,8 @@ def transform_data(spark: SparkSession, data: str, s3_path: str):
     df.show(5, truncate=False)
     df.printSchema()
     delta_path = f"s3a://{s3_path}/{data.split('/')[-2]}"
-    write_data_into_s3(delta_path, df, partition_list=["source_date"])
+    data_format = "delta"
+    write_data_into_s3(delta_path, df, data_format, partition_list=["source_date"])
     return df
 
 def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
@@ -76,8 +77,9 @@ def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
     if 'VendorID' in valid_cols:
         df = df.withColumn("VendorID", col("VendorID").cast("integer").alias("VendorID"))
     table_name = df.select("data_source").distinct().collect()[0][0].split('/')[-1].split('.')[0]
-    delta_path = f"s3a://{s3_path}/{'_'.join(table_name.split('_')[0:2])}/{table_name.split('_')[-1].replace('-','_')}"
-    write_data_into_s3(delta_path, df)
+    create_table = f"{glue_database}.{table_name}"
+    delta_format = "iceberg"
+    write_data_into_s3(create_table, df, delta_format)
     logging.info("Data loading completed.")
 
 def glue_setup(aws_region: str, account_id: str) -> None:
@@ -169,6 +171,19 @@ if __name__ == "__main__":
                         .config("spark.driver.maxResultSize", "2g") \
                         .config("spark.sql.shuffle.partitions", "8") \
                         .getOrCreate()
+    
+    spark.conf.set(
+        "spark.sql.catalog.iceberg",
+        "org.apache.iceberg.spark.SparkCatalog"
+    )
+    spark.conf.set(
+        "spark.sql.catalog.iceberg.catalog-impl",
+        "org.apache.iceberg.aws.glue.GlueCatalog"
+    )
+    spark.conf.set(
+        "spark.sql.catalog.iceberg.warehouse",
+        f"s3://{s3_bucket}/iceberg"
+    )
     
     main(spark)
 
