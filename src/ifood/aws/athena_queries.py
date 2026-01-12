@@ -108,13 +108,10 @@ def transform_athena_results_to_dataframe(results: list) -> list:
     logging.info(f"Transformed Athena results into {len(data)} records.")
     return data
 
-def execute_athena_query(region_name: str, access_key: str, secret_key: str, query: str, output_location: str) -> list:
+def execute_athena_query(query: str, output_location: str) -> list:
     """
         Execute an Athena query and return the results as a list of dictionaries.
         Args:
-            region_name (str): The AWS region name.
-            access_key (str): The AWS access key ID.
-            secret_key (str): The AWS secret access key.
             query (str): The SQL query to execute.
             output_location (str): The S3 location for query results.
         Returns:
