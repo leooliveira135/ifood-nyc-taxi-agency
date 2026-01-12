@@ -182,7 +182,7 @@ if __name__ == "__main__":
     )
     spark.conf.set(
         "spark.sql.catalog.iceberg.warehouse",
-        f"s3://{s3_bucket}/iceberg"
+        f"s3://{s3_bucket}"
     )
     
     main(spark)
