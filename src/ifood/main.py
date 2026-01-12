@@ -137,12 +137,12 @@ def main(spark: SparkSession):
             load_data(df, s3_bucket, selected_columns)
             logging.info("Data loading to S3 completed successfully.")
 
-            logging.info("Setting up AWS Glue catalog...")
-            aws_credentials = get_aws_credentials(aws_profile_name)
-            account_id = aws_credentials['account_id']
-            aws_region = aws_credentials['region']
-            glue_setup(aws_region, account_id)
-            logging.info("AWS Glue catalog setup completed successfully.\n")
+    logging.info("Setting up AWS Glue catalog...")
+    aws_credentials = get_aws_credentials(aws_profile_name)
+    account_id = aws_credentials['account_id']
+    aws_region = aws_credentials['region']
+    glue_setup(aws_region, account_id)
+    logging.info("AWS Glue catalog setup completed successfully.\n")
 
 if __name__ == "__main__":
 
