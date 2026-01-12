@@ -1,7 +1,11 @@
 import logging
 from ifood.api.fetch_data import fetch_data_from_source
 from ifood.aws.s3_bucket import check_file_exists_in_s3, download_file_to_s3, read_file_from_s3, write_data_into_s3
-from ifood.vars import endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket, s3_bucket, selected_columns
+from ifood.aws.credentials import get_aws_credentials
+from ifood.aws.glue_catalog import create_glue_database, create_glue_crawler, start_glue_crawler
+from ifood.vars import (
+    endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket, s3_bucket, selected_columns, glue_database_stg, glue_database
+)
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import lit, col
 from pyspark.sql.functions import current_date
@@ -76,6 +80,35 @@ def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
     write_data_into_s3(delta_path, df)
     logging.info("Data loading completed.")
 
+def glue_setup(aws_region: str, account_id: str) -> None:
+    """
+        Setup AWS Glue database and crawler.
+        Args:
+            aws_region (str): The AWS region.
+            account_id (str): The AWS account ID.
+        Returns:
+            None
+    """
+    logging.info("Setting up AWS Glue database...")
+    logging.info(f"Creating Glue crawler for staging database {glue_database_stg} in {aws_region}...")
+    create_glue_database(glue_database_stg, aws_region)
+    logging.info(f"Creating Glue crawler for production database {glue_database} in {aws_region}...")
+    create_glue_database(glue_database, aws_region)    
+    logging.info("AWS Glue databases created successfully.")
+    crawler_name_stg = f"{glue_database_stg}_crawler"
+    crawler_name = f"{glue_database}_crawler"
+    s3_path_stg = f"s3://{s3_stg_bucket}/"
+    s3_path = f"s3://{s3_bucket}/"
+    logging.info("Creating AWS Glue crawlers...")
+    create_glue_crawler(crawler_name_stg, glue_database_stg, s3_path_stg, aws_region, account_id)
+    create_glue_crawler(crawler_name, glue_database, s3_path, aws_region, account_id)
+    logging.info("AWS Glue crawlers created successfully.")
+    logging.info("Starting AWS Glue crawlers...")
+    start_glue_crawler(crawler_name_stg, glue_database_stg)
+    start_glue_crawler(crawler_name, glue_database)
+    logging.info("AWS Glue crawlers started and completed successfully.")
+
+
 def main(spark: SparkSession):
     """
         Main function to orchestrate the ETL process.
@@ -103,6 +136,13 @@ def main(spark: SparkSession):
             logging.info(f"Loading final data into S3 bucket {s3_bucket}...")
             load_data(df, s3_bucket, selected_columns)
             logging.info("Data loading to S3 completed successfully.")
+
+            logging.info("Setting up AWS Glue catalog...")
+            aws_credentials = get_aws_credentials(aws_profile_name)
+            account_id = aws_credentials['account_id']
+            aws_region = aws_credentials['region']
+            glue_setup(aws_region, account_id)
+            logging.info("AWS Glue catalog setup completed successfully.\n")
 
 if __name__ == "__main__":
 

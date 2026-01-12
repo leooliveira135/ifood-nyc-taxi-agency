@@ -11,13 +11,12 @@ def get_aws_credentials(profile_name: str):
     """
     try:
         session = boto3.Session(profile_name=profile_name)
-        credentials = session.get_credentials().get_frozen_credentials()
+        #credentials = session.get_credentials().get_frozen_credentials()
         account_id = session.client('sts').get_caller_identity().get('Account')
         region = session.region_name
         logging.info(f"Retrieved AWS credentials for profile {profile_name} in account {account_id}")
         return {
-            'aws_access_key_id': credentials.access_key,
-            'aws_secret_access_key': credentials.secret_key,
+            'account_id': account_id,
             'region': region
         }
     except Exception as e:

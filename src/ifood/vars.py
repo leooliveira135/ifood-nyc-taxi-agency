@@ -12,8 +12,8 @@ filter_year = "2023"
 aws_profile_name = "default"
 
 s3_raw_bucket = "ifood-nyc-taxi-agency-raw"
-s3_stg_bucket = "ifood-nyc-taxi-agency-stg"
-s3_bucket = "ifood-nyc-taxi-agency"
+s3_stg_bucket = "ifood-nyc-taxi-agency-stg/delta"
+s3_bucket = "ifood-nyc-taxi-agency/delta"
 
 headers = {
     # Critical: mimic curl/browser
@@ -33,3 +33,7 @@ selected_columns = [
     "data_source",
     "source_date"
 ]
+
+glue_database_stg = "ifood_nyc_taxi_agency_stg"
+glue_database = "ifood_nyc_taxi_agency"
+aws_glue_role = "glue-crawler-role"
