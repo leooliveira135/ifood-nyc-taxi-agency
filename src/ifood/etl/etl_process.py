@@ -70,16 +70,9 @@ def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
         df = df.select(valid_cols)
     if 'VendorID' in valid_cols:
         df = df.withColumn("VendorID", col("VendorID").cast("integer").alias("VendorID"))
-    table_name = df.select("data_source").distinct().collect()[0][0].split('/')[-1].split('.')[0]
+    table_name = f"{df.select('data_source').distinct().collect()[0][0].split('/')[-1].split('.')[0]}_delta"
     delta_path = f"s3a://{s3_path}/{'_'.join(table_name.split('_')[0:2])}/{table_name.split('_')[-1].replace('-','_')}"
     write_data_into_s3(delta_path, df)
-    iceberg_table = f"{glue_database}.{'_'.join(table_name.split('_')[0:2])}"
-    logging.info(f"Creating Iceberg table {iceberg_table} for {glue_database} Athena schema.")
-    df_iceberg = df
-    df_iceberg.writeTo(iceberg_table) \
-              .using("iceberg") \
-              .tableProperty("format-version", "2") \
-              .createOrReplace()
     logging.info("Data loading completed.")
 
 def run_etl_process(spark: SparkSession) -> None:
