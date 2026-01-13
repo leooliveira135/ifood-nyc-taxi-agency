@@ -4,7 +4,7 @@ from ifood.aws.s3_bucket import check_file_exists_in_s3, download_file_to_s3, re
 from ifood.aws.credentials import get_aws_credentials
 from ifood.aws.glue_catalog import create_glue_database, create_glue_crawler, start_glue_crawler
 from ifood.vars import (
-    endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket, s3_bucket, selected_columns, glue_database_stg, glue_database
+    endpoint, filename_list, filter_year, s3_raw_bucket, aws_profile_name, s3_stg_bucket, s3_bucket, selected_columns, glue_database_stg, glue_database, yellow_tripdata_iceberg, green_tripdata_iceberg
 )
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import lit, col
@@ -55,9 +55,9 @@ def transform_data(spark: SparkSession, data: str, s3_path: str):
     logging.info(f"DataFrame loaded from {s3_path} with {df.count()} records.")
     df.show(5, truncate=False)
     df.printSchema()
-    delta_path = f"s3a://{s3_path}/{data.split('/')[-2]}"
-    data_format = "delta"
-    write_data_into_s3(delta_path, df, data_format, partition_list=["source_date"])
+    #delta_path = f"s3a://{s3_path}/{data.split('/')[-2]}"
+    #data_format = "delta"
+    #write_data_into_s3(delta_path, df, data_format, partition_list=["source_date"])
     return df
 
 def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
@@ -147,23 +147,22 @@ def main(spark: SparkSession):
     logging.info("AWS Glue catalog setup completed successfully.\n")
 
 if __name__ == "__main__":
-
+    
     spark = SparkSession.builder \
                         .appName("iFood Data Processing from NYC Taxi Agency") \
                         .config(
                             "spark.jars.packages",
-                            "org.apache.hadoop:hadoop-aws:3.3.4,"
                             "io.delta:delta-spark_2.12:3.1.0,"
-                            "com.amazonaws:aws-java-sdk-bundle:1.12.262"
+                            "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.3,"
+                            "org.apache.iceberg:iceberg-aws:1.4.3"
                         ) \
-                        .config(
-                             "spark.sql.catalog.spark_catalog",
-                             "org.apache.spark.sql.delta.catalog.DeltaCatalog"
-                        ) \
-                        .config(
-                            "spark.hadoop.fs.s3a.aws.credentials.provider",
-                            "com.amazonaws.auth.profile.ProfileCredentialsProvider"
-                        ) \
+                        .config("spark.sql.catalog.spark_catalog","org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+                        .config("spark.hadoop.fs.s3a.aws.credentials.provider","com.amazonaws.auth.profile.ProfileCredentialsProvider") \
+                        .config("spark.sql.catalog.iceberg","org.apache.iceberg.spark.SparkCatalog") \
+                        .config("spark.sql.catalog.iceberg.catalog-impl","org.apache.iceberg.aws.glue.GlueCatalog") \
+                        .config("spark.sql.catalog.iceberg.io-impl","org.apache.iceberg.aws.s3.S3FileIO") \
+                        .config("spark.sql.catalog.iceberg.warehouse",f"s3://{s3_bucket}") \
+                        .config("spark.sql.extensions","org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
                         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
                         .config("spark.hadoop.fs.s3a.profile", aws_profile_name) \
                         .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
@@ -172,19 +171,9 @@ if __name__ == "__main__":
                         .config("spark.sql.shuffle.partitions", "8") \
                         .getOrCreate()
     
-    spark.conf.set(
-        "spark.sql.catalog.iceberg",
-        "org.apache.iceberg.spark.SparkCatalog"
-    )
-    spark.conf.set(
-        "spark.sql.catalog.iceberg.catalog-impl",
-        "org.apache.iceberg.aws.glue.GlueCatalog"
-    )
-    spark.conf.set(
-        "spark.sql.catalog.iceberg.warehouse",
-        f"s3://{s3_bucket}"
-    )
-    
+    spark.sql(yellow_tripdata_iceberg)
+    spark.sql(green_tripdata_iceberg)
+
     main(spark)
 
     spark.stop()

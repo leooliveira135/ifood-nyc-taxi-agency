@@ -120,8 +120,11 @@ def write_data_into_s3(path: str, object_data: DataFrame, data_format: str, part
                     .mode("overwrite") \
                     .partitionBy(*partition_list) \
                     .save(path)
-            elif data_format.lower() == "iceberg":
+            else:
                 writer.mode("append").save(path)
+            
+            if data_format.lower() == "iceberg":
+                writer.mode("append").save(f"iceberg.{path}")
         logging.info(f"Data successfully written to {data_format} at {path}")
     except Exception as e:
         logging.error(f"Failed to write data to {data_format} at {path}: {e}")

@@ -39,3 +39,34 @@ glue_database = "ifood_nyc_taxi_agency"
 aws_glue_role = "glue-crawler-role"
 
 athena_output_queries = "s3://ifood-nyc-taxi-agency/athena/"
+
+yellow_tripdata_iceberg=f"""
+CREATE TABLE IF NOT EXISTS iceberg.{glue_database}.yellow_tripdata (
+    VendorID INTEGER,
+    tpep_pickup_datetime TIMESTAMP,
+    tpep_dropoff_datetime TIMESTAMP,
+    passenger_count INTEGER,
+    total_amount DOUBLE,
+    ingestion_date DATE,
+    data_source STRING,
+    source_date STRING
+)
+USING iceberg
+PARTITIONED BY (source_date)
+"""
+
+
+green_tripdata_iceberg=f"""
+CREATE TABLE IF NOT EXISTS iceberg.{glue_database}.green_tripdata (
+    vendor_id INTEGER,
+    tpep_pickup_datetime TIMESTAMP,
+    tpep_dropoff_datetime TIMESTAMP,
+    passenger_count INTEGER,
+    total_amount DOUBLE,
+    ingestion_date DATE,
+    data_source STRING,
+    source_date STRING
+)
+USING iceberg
+PARTITIONED BY (source_date)
+"""
