@@ -68,8 +68,9 @@ def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
     valid_cols = [c for c in columns if c in existing]
     if valid_cols:
         df = df.select(valid_cols)
-    if 'VendorID' in valid_cols:
+    if ('VendorID' and 'passenger_count') in valid_cols:
         df = df.withColumn("VendorID", col("VendorID").cast("integer").alias("VendorID"))
+        df = df.withColumn("passenger_count", col("passenger_count").cast("integer").alias("passenger_count"))
     table_name = f"{df.select('data_source').distinct().collect()[0][0].split('/')[-1].split('.')[0]}_delta"
     delta_path = f"s3a://{s3_path}/{'_'.join(table_name.split('_')[0:2])}/{table_name.split('_')[-1].replace('-','_')}"
     write_data_into_s3(delta_path, df)
