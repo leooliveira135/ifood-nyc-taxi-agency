@@ -13,7 +13,7 @@ aws_profile_name = "default"
 
 s3_raw_bucket = "ifood-nyc-taxi-agency-raw"
 s3_stg_bucket = "ifood-nyc-taxi-agency-stg/delta"
-s3_bucket = "ifood-nyc-taxi-agency/iceberg"
+s3_bucket = "ifood-nyc-taxi-agency/delta"
 
 headers = {
     # Critical: mimic curl/browser
@@ -39,6 +39,7 @@ glue_database = "ifood_nyc_taxi_agency"
 aws_glue_role = "glue-crawler-role"
 
 athena_output_queries = "s3://ifood-nyc-taxi-agency/athena/"
+iceberg_bucket = "ifood-nyc-taxi-agency/iceberg"
 
 yellow_tripdata_iceberg=f"""
 CREATE TABLE IF NOT EXISTS iceberg.{glue_database}.yellow_tripdata (
@@ -54,7 +55,6 @@ CREATE TABLE IF NOT EXISTS iceberg.{glue_database}.yellow_tripdata (
 USING iceberg
 PARTITIONED BY (source_date)
 """
-
 
 green_tripdata_iceberg=f"""
 CREATE TABLE IF NOT EXISTS iceberg.{glue_database}.green_tripdata (

@@ -100,32 +100,32 @@ def read_file_from_s3(bucket_name: str, s3_key: str, filename: str) -> bytes:
         logging.error(f"Failed to read {filename} from S3: {e}")
         raise
 
-def write_data_into_s3(path: str, object_data: DataFrame, data_format: str, partition_list: list=None) -> None:
+def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=None) -> None:
     """
         Write data into S3 in Delta Lake format.
         Args:
             path (str): The S3 path where the data will be written.
             object_data (DataFrame): The Spark DataFrame to write.
-            data_format (str): The format to write the data in (e.g., "delta").
             partition_list (list, optional): List of columns to partition the data by.
         Returns:
             None
     """
-    logging.info(f"Writing data to {data_format} at {path} with partitions {partition_list}")
+    logging.info(f"Writing data to Delta Lake at {path} with partitions {partition_list}")
     try:
-        writer = object_data.write.format(data_format)
         if partition_list:
-            if data_format.lower() == "delta":
-                writer.option("overwriteSchema", "true") \
-                    .mode("overwrite") \
-                    .partitionBy(*partition_list) \
-                    .save(path)
-            else:
-                writer.mode("append").save(path)
-            
-            if data_format.lower() == "iceberg":
-                writer.mode("append").save(f"iceberg.{path}")
-        logging.info(f"Data successfully written to {data_format} at {path}")
+            object_data.write \
+                .format("delta") \
+                .option("overwriteSchema", "true") \
+                .mode("overwrite") \
+                .partitionBy(*partition_list) \
+                .save(path)
+        else:
+            object_data.write \
+                .format("delta") \
+                .option("overwriteSchema", "true") \
+                .mode("append") \
+                .save(path)
+        logging.info(f"Data successfully written to Delta Lake at {path}")
     except Exception as e:
-        logging.error(f"Failed to write data to {data_format} at {path}: {e}")
+        logging.error(f"Failed to write data to Delta Lake at {path}: {e}")
         raise
