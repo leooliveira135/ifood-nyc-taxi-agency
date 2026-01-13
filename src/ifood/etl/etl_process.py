@@ -21,7 +21,7 @@ def extract_data(endpoint: str, filename: str, date: str) -> str:
         output = fetch_data_from_source(endpoint, filename, date)
         for file_url in output:
             bucket_key = ("_").join(file_url.split('/')[-1].split('_')[:2])
-            s3_filename = file_url.split('/')[-1]
+            s3_filename = file_url.split('/')[-1].strip()
             if not check_file_exists_in_s3(s3_raw_bucket, bucket_key, s3_filename):
                 logging.info(f"File {s3_filename} does not exist in S3. Downloading...")
                 download_file_to_s3(file_url, s3_raw_bucket, bucket_key, s3_filename)
