@@ -1,3 +1,7 @@
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parents[1]
+
 endpoint = "https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page"
 
 filename_list = [
@@ -41,32 +45,6 @@ aws_glue_role = "glue-crawler-role"
 athena_output_queries = "s3://ifood-nyc-taxi-agency/athena/"
 iceberg_bucket = "ifood-nyc-taxi-agency/iceberg"
 
-yellow_tripdata_iceberg=f"""
-CREATE TABLE IF NOT EXISTS iceberg.{glue_database}.yellow_tripdata (
-    VendorID INTEGER,
-    tpep_pickup_datetime TIMESTAMP,
-    tpep_dropoff_datetime TIMESTAMP,
-    passenger_count INTEGER,
-    total_amount DOUBLE,
-    ingestion_date DATE,
-    data_source STRING,
-    source_date STRING
-)
-USING iceberg
-PARTITIONED BY (source_date)
-"""
-
-green_tripdata_iceberg=f"""
-CREATE TABLE IF NOT EXISTS iceberg.{glue_database}.green_tripdata (
-    vendor_id INTEGER,
-    tpep_pickup_datetime TIMESTAMP,
-    tpep_dropoff_datetime TIMESTAMP,
-    passenger_count INTEGER,
-    total_amount DOUBLE,
-    ingestion_date DATE,
-    data_source STRING,
-    source_date STRING
-)
-USING iceberg
-PARTITIONED BY (source_date)
-"""
+glue_iceberg_job = "ifood-glue-iceberg"
+glue_job_path = "ifood-nyc-taxi-agency/scripts"
+glue_iceberg_job_path = (project_root / "aws" / "glue_iceberg_job.py")
