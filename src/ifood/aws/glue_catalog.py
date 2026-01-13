@@ -95,6 +95,123 @@ def start_glue_crawler(crawler_name: str, database_name: str) -> None:
 
     logging.info(f"Glue crawler {crawler_name} finished successfully.")
 
+def list_glue_db_tables(database_name):
+    """
+        List all tables in a Glue database.
+        Args:
+            database_name (str): The name of the Glue database.
+        Returns:
+            list: A list of table names in the database.
+    """
+    glue = boto3.client('glue')
     db_list = glue.get_tables(DatabaseName=database_name)
     table_list = [table['Name'] for table in db_list['TableList']]
     logging.info(f"Tables in database {database_name}: {table_list}")
+    return table_list
+
+def create_glue_job(job_name:str, account_id: str, glue_job_path: str, glue_version: str="4.0", worker_type: str="G.1X", num_workers: int=5, timeout: int=60):
+    """
+        Create a Glue job for ETL processing.
+        Args:
+            job_name (str): The name of the Glue job to create.
+            account_id (str): The AWS account ID.
+            glue_job_path (str): The S3 path to the Glue job script.
+            glue_version (str): The Glue version to use. Defaults to "4.0".
+            worker_type (str): The type of worker to use. Defaults to "G.1X".
+            num_workers (int): The number of workers to allocate. Defaults to 5.
+            timeout (int): The job timeout in minutes. Defaults to 60.
+        Returns:
+            None
+    """
+
+    glue = boto3.client('glue')
+    role_arn = f"arn:aws:iam::{account_id}:role/{aws_glue_role}"
+
+    try:
+        try:
+            glue.get_job(JobName=job_name)
+            logging.error(f"Glue job {job_name} already exists — skipping creation")
+            exit(1)
+
+        except glue.exceptions.EntityNotFoundException:
+            logging.info(f"Glue job {job_name} not found — creating it")
+        
+        glue.create_job(
+            Name=job_name,
+            Role=role_arn,
+            ExecutionProperty={"MaxConcurrentRuns": 1},
+            Command={
+                "Name": "glueetl",
+                "ScriptLocation": glue_job_path,
+                "PythonVersion": "3"
+            },
+            DefaultArguments={
+                "--job-language": "python",
+                "--enable-glue-datacatalog": "true",
+                "--datalake-formats": "delta,iceberg",
+                "--enable-metrics": "true",
+                "--enable-continuous-cloudwatch-log": "true"
+            },
+            GlueVersion=glue_version,
+            WorkerType=worker_type,
+            NumberOfWorkers=num_workers,
+            Timeout=timeout
+        )
+
+        logging.info(f"Glue job {job_name} created successfully")
+
+    except ClientError as e:
+        logging.error(f"AWS ClientError while creating Glue job {job_name}")
+
+    except Exception as e:
+        logging.error(f"Unexpected error while creating Glue job {job_name}")
+
+def run_glue_job(job_name:str, glue_catalog: str, source_path: str, target_db: str, target_table:str, iceberg_location:str):
+    """
+        Run a Glue job for ETL processing.
+        Args:
+            job_name (str): The name of the Glue job to run.
+            glue_catalog (str): The Glue catalog name to use.
+            source_path (str): The S3 path to the source data.
+            target_db (str): The target Glue database name.
+            target_table (str): The target table name.
+            iceberg_location (str): The S3 location for Iceberg table data.
+        Returns:
+            str: The job run ID.
+    """
+
+    glue = boto3.client('glue')
+
+    try:
+        logging.info(f"Starting Glue job: {job_name}")
+        logging.info(f"""Job arguments\n 
+                     Source path: {source_path}\n 
+                     Glue Catalog: {glue_catalog}\n 
+                     Target database: {target_db}\n 
+                     Target table: {target_table}\n 
+                     Iceberg location: {iceberg_location}
+                     """)
+
+        response = glue.start_job_run(
+            JobName=job_name,
+            Arguments={
+                "--SOURCE_PATH": source_path,
+                "--TARGET_DB": target_db,
+                "--TARGET_TABLE": target_table,
+                "--ICEBERG_LOCATION": iceberg_location,
+                "--GLUE_CATALOG": glue_catalog
+            },
+        )
+
+        job_run_id = response["JobRunId"]
+        
+        logging.info(f"Glue job {job_name} started successfully")
+        logging.info(f"Job Run ID: {job_run_id}")
+
+        return job_run_id
+    
+    except ClientError as e:
+        logging.error(f"AWS ClientError while starting Glue job {job_name}")
+
+    except Exception as e:
+        logging.error(f"Unexpected error while starting Glue job {job_name}")

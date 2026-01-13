@@ -23,64 +23,30 @@ def main(spark: SparkSession):
     run_glue_catalog(aws_credentials)
 
 if __name__ == "__main__":
-    spark = (
-        SparkSession.builder
-        .appName("iFood Data Processing from NYC Taxi Agency")
 
-        # --- Packages ---
-        .config(
-            "spark.jars.packages",
-            "io.delta:delta-core_2.12:2.4.0,"
-            "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.4.3,"
-            "org.apache.iceberg:iceberg-aws:1.4.3"
-        )
-
-        # --- Spark SQL Extensions (MUST be single line) ---
-        .config(
-            "spark.sql.extensions",
-            "io.delta.sql.DeltaSparkSessionExtension,"
-            "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-        )
-
-        # --- Delta Catalog ---
-        .config(
-            "spark.sql.catalog.spark_catalog",
-            "org.apache.spark.sql.delta.catalog.DeltaCatalog"
-        )
-
-        # --- Iceberg Glue Catalog ---
-        .config(
-            "spark.sql.catalog.glue_catalog",
-            "org.apache.iceberg.spark.SparkCatalog"
-        )
-        .config(
-            "spark.sql.catalog.glue_catalog.catalog-impl",
-            "org.apache.iceberg.aws.glue.GlueCatalog"
-        )
-        .config(
-            "spark.sql.catalog.glue_catalog.io-impl",
-            "org.apache.iceberg.aws.s3.S3FileIO"
-        )
-        .config(
-            "spark.sql.catalog.glue_catalog.warehouse",
-            f"s3://{iceberg_bucket}"
-        )
-
-        # --- AWS credentials (local only) ---
-        .config(
-            "spark.hadoop.fs.s3a.aws.credentials.provider",
-            "com.amazonaws.auth.profile.ProfileCredentialsProvider"
-        )
-        .config("spark.hadoop.fs.s3a.profile", aws_profile_name)
-
-        # --- Performance / compatibility ---
-        .config("spark.sql.legacy.timeParserPolicy", "LEGACY")
-        .config("spark.sql.shuffle.partitions", "8")
-        .config("spark.driver.memory", "4g")
-        .config("spark.driver.maxResultSize", "2g")
-
-        .getOrCreate()
-    )
+    spark = SparkSession.builder \
+                        .appName("iFood Data Processing from NYC Taxi Agency") \
+                        .config(
+                            "spark.jars.packages",
+                            "org.apache.hadoop:hadoop-aws:3.3.4,"
+                            "io.delta:delta-spark_2.12:3.1.0,"
+                            "com.amazonaws:aws-java-sdk-bundle:1.12.262"
+                        ) \
+                        .config(
+                             "spark.sql.catalog.spark_catalog",
+                             "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+                        ) \
+                        .config(
+                            "spark.hadoop.fs.s3a.aws.credentials.provider",
+                            "com.amazonaws.auth.profile.ProfileCredentialsProvider"
+                        ) \
+                        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+                        .config("spark.hadoop.fs.s3a.profile", aws_profile_name) \
+                        .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
+                        .config("spark.driver.memory", "6g") \
+                        .config("spark.driver.maxResultSize", "2g") \
+                        .config("spark.sql.shuffle.partitions", "8") \
+                        .getOrCreate()
 
     main(spark)
 

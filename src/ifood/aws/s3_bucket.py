@@ -129,3 +129,23 @@ def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=N
     except Exception as e:
         logging.error(f"Failed to write data to Delta Lake at {path}: {e}")
         raise
+
+def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: str):
+    s3 = boto3.client('s3')
+
+    try:
+        logging.info(f"Uploading {local_path} to s3://{bucket_name}/{bucket_key}")
+
+        s3.upload_file(
+            Filename=local_path,
+            Bucket=bucket_name,
+            Key=bucket_key
+        )
+
+        logging.info("Upload completed successfully")
+
+    except ClientError as e:
+        logging.error(f"AWS error during upload: {e}")
+
+    except Exception as e:
+        logging.error(f"Unexpected error during upload: {e}")
