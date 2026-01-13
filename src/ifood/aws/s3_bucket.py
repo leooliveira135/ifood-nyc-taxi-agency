@@ -2,11 +2,28 @@ import boto3
 import requests
 import logging
 import time
+import json
 from botocore.exceptions import ClientError
 from ifood.vars import headers
 from pyspark.sql import DataFrame
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+def get_table_last_version(bucket_name: str, bucket_key: str, table_name:str) -> str:
+    """
+        Retrieve the last version number of a table from a JSON metadata file in S3.
+        Args:
+            bucket_name (str): The name of the S3 bucket.
+            bucket_key (str): The S3 key (path) to the JSON metadata file.
+            table_name (str): The name of the table to retrieve the version for.
+        Returns:
+            str: The last version of the specified table.
+    """
+    s3 = boto3.client("s3")
+    paginator = s3.get_paginator('list_objects_v2')
+    page = paginator.paginate(Bucket=bucket_name, Prefix=bucket_key)
+    data = json.loads(page['Body'].read())
+    return data[table_name]['last_version']
 
 def check_file_exists_in_s3(bucket_name: str, s3_key: str, filename: str) -> bool:
     """
@@ -120,8 +137,11 @@ def write_data_into_s3(path: str, object_data: DataFrame, data_format: str, part
                     .mode("overwrite") \
                     .partitionBy(*partition_list) \
                     .save(path)
-            elif data_format.lower() == "iceberg":
+            else:
                 writer.mode("append").save(path)
+            
+            if data_format.lower() == "iceberg":
+                writer.mode("append").save(f"iceberg.{path}")
         logging.info(f"Data successfully written to {data_format} at {path}")
     except Exception as e:
         logging.error(f"Failed to write data to {data_format} at {path}: {e}")
