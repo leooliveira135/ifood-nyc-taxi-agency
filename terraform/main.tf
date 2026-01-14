@@ -199,7 +199,11 @@ resource "aws_iam_policy" "athena_glue_policy" {
           "glue:GetPartition",
           "glue:GetPartitions",
           "glue:GetPartitionIndexes",
-          "glue:BatchGetPartition"
+          "glue:BatchGetPartition",
+          "glue:GetJob",
+          "glue:CreateJob",
+          "glue:UpdateJob",
+          "glue:DeleteJob"
         ]
         Resource = "*"
       },
