@@ -1,6 +1,6 @@
 from pathlib import Path
 
-project_root = Path(__name__).resolve().parents[0]
+project_root = Path(__name__).resolve().parent
 
 endpoint = "https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page"
 
@@ -47,4 +47,4 @@ iceberg_bucket = "ifood-nyc-taxi-agency/iceberg"
 
 glue_iceberg_job = "ifood-glue-iceberg"
 glue_job_path = "ifood-nyc-taxi-agency/scripts"
-glue_iceberg_job_path = (project_root / "src" / "aws" / "glue_iceberg_job.py")
+glue_iceberg_job_path = project_root / "src" / "ifood" / "aws" / "glue_iceberg_job.py"
