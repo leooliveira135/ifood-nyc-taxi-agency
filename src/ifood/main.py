@@ -2,7 +2,7 @@ import logging
 from ifood.aws.credentials import get_aws_credentials
 from ifood.etl.etl_process import run_etl_process
 from ifood.etl.glue_setup import run_glue_catalog
-from ifood.vars import aws_profile_name, iceberg_bucket
+from ifood.vars import aws_profile_name
 from pyspark.sql import SparkSession
 
 def main(spark: SparkSession):
