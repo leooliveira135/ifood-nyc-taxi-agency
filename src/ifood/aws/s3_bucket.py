@@ -135,31 +135,32 @@ def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path):
     """
     Upload a file to an S3 bucket.
     Args:
-        bucket_name (str): The name of the S3 bucket.
-        bucket_key (str): The S3 key (path) where the file will be stored.
-        local_path (Path): The local file path to upload.
+        bucket_name (str): S3 bucket name
+        bucket_key (str): S3 prefix INCLUDING filename e.g. scripts/glue_iceberg_job.py
+        local_path (Path): Local file path
     Returns:
         None
     """
     s3 = boto3.client('s3')
+    local_path = Path(local_path)
+
+    if not local_path.is_file():
+        logging.error(f"Glue script not found in {local_path}")
+    
+    logging.info(f"Uploading {local_path} to s3://{bucket_name}/{bucket_key}/{str(local_path).split('/')[-1]}")
 
     try:
-        local_path = Path(local_path)
-        logging.info(f"Uploading {local_path} to s3://{bucket_name}/{bucket_key}")
-
-        if not local_path.is_file():
-            logging.error(f"Glue script not found in {local_path}")
-
         s3.upload_file(
             Filename=local_path.as_posix(),
             Bucket=bucket_name,
             Key=f"{bucket_key}/{str(local_path).split('/')[-1]}"
         )
-
-        logging.info("Upload completed successfully")
+        
+        logging.info(f"Upload completed successfully")
 
     except ClientError as e:
-        logging.error(f"AWS error during upload: {e}")
+        logging.error(f"""AWS error during upload: {e}\n
+                      {e.response['Error']['Code']} - {e.response['Error']['Message']}""")
 
     except Exception as e:
         logging.error(f"Unexpected error during upload: {e}")
