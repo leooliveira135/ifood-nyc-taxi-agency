@@ -4,6 +4,7 @@ import logging
 import time
 from botocore.exceptions import ClientError
 from ifood.vars import headers
+from pathlib import Path
 from pyspark.sql import DataFrame
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -130,16 +131,29 @@ def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=N
         logging.error(f"Failed to write data to Delta Lake at {path}: {e}")
         raise
 
-def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: str):
+def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path):
+    """
+    Upload a file to an S3 bucket.
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        bucket_key (str): The S3 key (path) where the file will be stored.
+        local_path (Path): The local file path to upload.
+    Returns:
+        None
+    """
     s3 = boto3.client('s3')
 
     try:
+        local_path = Path(local_path)
         logging.info(f"Uploading {local_path} to s3://{bucket_name}/{bucket_key}")
 
+        if not local_path.is_file():
+            logging.error(f"Glue script not found in {local_path}")
+
         s3.upload_file(
-            Filename=local_path,
+            Filename=local_path.as_posix(),
             Bucket=bucket_name,
-            Key=bucket_key
+            Key=f"{bucket_key}/{str(local_path).split('/')[-1]}"
         )
 
         logging.info("Upload completed successfully")

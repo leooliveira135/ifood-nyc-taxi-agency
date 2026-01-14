@@ -109,12 +109,13 @@ def list_glue_db_tables(database_name):
     logging.info(f"Tables in database {database_name}: {table_list}")
     return table_list
 
-def create_glue_job(job_name:str, account_id: str, glue_job_path: str, glue_version: str="4.0", worker_type: str="G.1X", num_workers: int=5, timeout: int=60):
+def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_path: str, glue_version: str="4.0", worker_type: str="G.1X", num_workers: int=5, timeout: int=60):
     """
         Create a Glue job for ETL processing.
         Args:
             job_name (str): The name of the Glue job to create.
             account_id (str): The AWS account ID.
+            aws_region (str): The AWS region where the crawler will be created.
             glue_job_path (str): The S3 path to the Glue job script.
             glue_version (str): The Glue version to use. Defaults to "4.0".
             worker_type (str): The type of worker to use. Defaults to "G.1X".
@@ -124,18 +125,21 @@ def create_glue_job(job_name:str, account_id: str, glue_job_path: str, glue_vers
             None
     """
 
-    glue = boto3.client('glue')
+    glue = boto3.client('glue', region_name=aws_region)
     role_arn = f"arn:aws:iam::{account_id}:role/{aws_glue_role}"
+        
+    if not glue_job_path.startswith("s3://"):
+        logging.error(f"Invalid ScriptLocation (must be s3://): {glue_job_path}")
 
     try:
-        try:
-            glue.get_job(JobName=job_name)
-            logging.error(f"Glue job {job_name} already exists — skipping creation")
-            exit(1)
+        glue.get_job(JobName=job_name)
+        logging.error(f"Glue job {job_name} already exists — skipping creation")
 
-        except glue.exceptions.EntityNotFoundException:
-            logging.info(f"Glue job {job_name} not found — creating it")
-        
+    except glue.exceptions.EntityNotFoundException:
+        logging.info(f"Glue job {job_name} not found — creating it")
+
+    try:
+
         glue.create_job(
             Name=job_name,
             Role=role_arn,
@@ -161,7 +165,8 @@ def create_glue_job(job_name:str, account_id: str, glue_job_path: str, glue_vers
         logging.info(f"Glue job {job_name} created successfully")
 
     except ClientError as e:
-        logging.error(f"AWS ClientError while creating Glue job {job_name}")
+        logging.error(f"""AWS ClientError while creating Glue job {job_name}\n
+                      {e.response['Error']['Code']} - {e.response['Error']['Message']}""")
 
     except Exception as e:
         logging.error(f"Unexpected error while creating Glue job {job_name}")

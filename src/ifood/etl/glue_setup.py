@@ -31,10 +31,11 @@ def glue_setup(aws_region: str, account_id: str) -> None:
     start_glue_crawler(crawler_name, glue_database)
     logging.info("AWS Glue crawlers started and completed successfully.")
 
-def iceberg_setup(account_id: str) -> None:
+def iceberg_setup(aws_region: str, account_id: str) -> None:
     """
-        Setup AWS Glue job for Iceberg tables.
+        Setup AWS Glue database and crawler.
         Args:
+            aws_region (str): The AWS region.
             account_id (str): The AWS account ID.
         Returns:
             None
@@ -43,10 +44,10 @@ def iceberg_setup(account_id: str) -> None:
     bucket_name = glue_job_path.split('/')[0]
     bucket_key = glue_job_path.split('/')[1]
     logging.info(f"Uploading {glue_iceberg_job_path} file into {bucket_name}")
-    upload_file_s3_bucket(str(glue_iceberg_job_path), bucket_key, bucket_name)
+    upload_file_s3_bucket(bucket_name, bucket_key, glue_iceberg_job_path)
     logging.info(f"Creating Glue Job for Iceberg tables {glue_iceberg_job}")
     s3_path = f"s3://{glue_job_path}/"
-    create_glue_job(glue_iceberg_job, account_id, s3_path)
+    create_glue_job(glue_iceberg_job, account_id, aws_region, s3_path)
     logging.info("AWS Glue Job created successfully.")
     table_list = list_glue_db_tables(glue_database)
     for table in table_list:
@@ -71,6 +72,6 @@ def run_glue_catalog(aws_credentials: dict):
     glue_setup(aws_region, account_id)
     logging.info("AWS Glue catalog setup completed successfully.\n")
     logging.info("Setting up AWS Glue Job...")
-    iceberg_setup(account_id)
+    iceberg_setup(aws_region, account_id)
     logging.info("AWS Glue Job setup completed successfully.\n")
 
