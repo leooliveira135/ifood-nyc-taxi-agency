@@ -21,10 +21,12 @@ def glue_setup(aws_region: str, account_id: str) -> None:
     crawler_name_stg = f"{glue_database_stg}_crawler"
     crawler_name = f"{glue_database}_crawler"
     s3_path_stg = f"s3://{s3_stg_bucket}/"
-    s3_path = f"s3://{s3_bucket}/"
     logging.info("Creating AWS Glue crawlers...")
     create_glue_crawler(crawler_name_stg, glue_database_stg, s3_path_stg, aws_region, account_id)
-    create_glue_crawler(crawler_name, glue_database, s3_path, aws_region, account_id)
+    table_list = list_glue_db_tables(glue_database_stg)
+    for table in table_list:
+        s3_path = f"s3://{s3_bucket}/{table}"
+        create_glue_crawler(crawler_name, glue_database, s3_path, aws_region, account_id)
     logging.info("AWS Glue crawlers created successfully.")
     logging.info("Starting AWS Glue crawlers...")
     start_glue_crawler(crawler_name_stg, glue_database_stg)
