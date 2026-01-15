@@ -3,6 +3,7 @@ import logging
 import time
 from botocore.exceptions import ClientError
 from ifood.vars import aws_glue_role
+from pathlib import Path
 
 def create_glue_database(database_name: str, aws_region: str) -> None:
     """
@@ -67,12 +68,11 @@ def create_glue_crawler(crawler_name: str, database_name: str, s3_path: str, aws
     except ClientError as e:
         logging.error(f"Error creating crawler {crawler_name}: {e}")
 
-def start_glue_crawler(crawler_name: str, database_name: str) -> None:
+def start_glue_crawler(crawler_name: str):
     """
         Start a Glue crawler to catalog data in S3.
         Args:
             crawler_name (str): The name of the Glue crawler to start.
-            database_name (str): The name of the Glue database associated with the crawler.
         Returns:
             None
     """
@@ -95,7 +95,7 @@ def start_glue_crawler(crawler_name: str, database_name: str) -> None:
 
     logging.info(f"Glue crawler {crawler_name} finished successfully.")
 
-def list_glue_db_tables(database_name):
+def list_glue_db_tables(database_name: str) -> list:
     """
         List all tables in a Glue database.
         Args:
@@ -127,9 +127,13 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
 
     glue = boto3.client('glue', region_name=aws_region)
     role_arn = f"arn:aws:iam::{account_id}:role/{aws_glue_role}"
+
+    if isinstance(glue_job_path, Path):
+        glue_job_path = glue_job_path.as_posix()
         
     if not glue_job_path.startswith("s3://"):
         logging.error(f"Invalid ScriptLocation (must be s3://): {glue_job_path}")
+        return
 
     try:
         glue.get_job(JobName=job_name)
@@ -171,15 +175,14 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
     except Exception as e:
         logging.error(f"Unexpected error while creating Glue job {job_name}")
 
-def run_glue_job(job_name:str, glue_catalog: str, source_path: str, target_db: str, target_table:str, iceberg_location:str):
+def run_glue_job(job_name:str, table_name: str, source_database: str, target_database: str, iceberg_location:str) -> str:
     """
         Run a Glue job for ETL processing.
         Args:
             job_name (str): The name of the Glue job to run.
-            glue_catalog (str): The Glue catalog name to use.
-            source_path (str): The S3 path to the source data.
-            target_db (str): The target Glue database name.
-            target_table (str): The target table name.
+            table_name (str): The name of the table sent to Glue job.
+            source_database (str): The source Glue database name.
+            target_database (str): The target Glue database name.
             iceberg_location (str): The S3 location for Iceberg table data.
         Returns:
             str: The job run ID.
@@ -190,21 +193,19 @@ def run_glue_job(job_name:str, glue_catalog: str, source_path: str, target_db: s
     try:
         logging.info(f"Starting Glue job: {job_name}")
         logging.info(f"""Job arguments\n 
-                     Source path: {source_path}\n 
-                     Glue Catalog: {glue_catalog}\n 
-                     Target database: {target_db}\n 
-                     Target table: {target_table}\n 
+                     Source database: {source_database}\n 
+                     Table name: {table_name}\n 
+                     Target database: {target_database}\n 
                      Iceberg location: {iceberg_location}
                      """)
 
         response = glue.start_job_run(
             JobName=job_name,
             Arguments={
-                "--SOURCE_PATH": source_path,
-                "--TARGET_DB": target_db,
-                "--TARGET_TABLE": target_table,
-                "--ICEBERG_LOCATION": iceberg_location,
-                "--GLUE_CATALOG": glue_catalog
+                "--SOURCE_DATABASE": source_database,
+                "--TABLE_NAME": table_name,
+                "--TARGET_DATABASE": target_database,
+                "--ICEBERG_LOCATION": iceberg_location
             },
         )
 

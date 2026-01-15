@@ -1,6 +1,7 @@
 import sys
 import logging
 from awsglue.utils import getResolvedOptions
+from ifood.vars import s3_stg_bucket
 from pyspark.sql import SparkSession
 
 logging.basicConfig(
@@ -14,23 +15,23 @@ def main():
         logger.info("Starting Delta → Iceberg Glue job")
         args = getResolvedOptions(
             sys.argv,
-            ["SOURCE_PATH", "TARGET_DB", "TARGET_TABLE", "ICEBERG_LOCATION", "GLUE_CATALOG"]
+            ["SOURCE_DATABASE", "TABLE_NAME", "TARGET_DATABASE", "ICEBERG_LOCATION"]
         )
 
-        source_path = args["SOURCE_PATH"]
-        target_db = args["TARGET_DB"]
-        target_table = args["TARGET_TABLE"]
+        source_database = args["SOURCE_DATABASE"]
+        table_name = args["TABLE_NAME"]
+        target_database = args["TARGET_DATABASE"]
         iceberg_location = args["ICEBERG_LOCATION"]
-        glue_catalog = args["GLUE_CATALOG"]
 
         logger.info(
-            "Job arguments | source_path=%s target_db=%s target_table=%s iceberg_location=%s glue_catalog=%s",
-            source_path, target_db, target_table, iceberg_location, glue_catalog
+            "Job arguments | source_database=%s table_name=%s target_database=%s iceberg_location=%s",
+            source_database, table_name, target_database, iceberg_location
         )
+        source_path = f"s3://{s3_stg_bucket}/{table_name}"
 
         spark = SparkSession.builder.getOrCreate()
         logger.info("Spark session created")
-        logger.info(f"Reading Delta table from {source_path}")
+        logger.info(f"Reading Delta table {source_path}")
 
         df = spark.read.format("delta").load(source_path)
 
@@ -41,11 +42,11 @@ def main():
         )
         logger.info(
             "Writing Iceberg table glue_catalog.%s.%s",
-            target_db, target_table
+            target_database, table_name
         )
 
         (
-            df.writeTo(f"{glue_catalog}.{target_db}.{target_table}")
+            df.writeTo(f"{target_database}.{table_name}")
             .using("iceberg")
             .tableProperty("format-version", "2")
             .option("location", iceberg_location)
