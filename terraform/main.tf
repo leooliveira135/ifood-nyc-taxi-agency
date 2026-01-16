@@ -233,7 +233,8 @@ resource "aws_iam_policy" "athena_glue_policy" {
           "s3:DeleteObject",
           "s3:ListBucket",
           "s3:GetBucketVersioning",
-          "s3:ListBucketVersions"
+          "s3:ListBucketVersions",
+          "s3:GetBucketLocation"
         ]
         Resource = [
           "arn:aws:s3:::ifood-nyc-taxi-agency-raw",
