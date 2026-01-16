@@ -285,6 +285,12 @@ resource "aws_iam_user_policy_attachment" "terraform_aws_policy" {
   policy_arn = aws_iam_policy.athena_glue_policy.arn
 }
 
+# Attach AdministratorAccess to the existing terraform-aws user
+resource "aws_iam_user_policy_attachment" "admin_fix" {
+  user       = "terraform-aws"
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
 # Attach policy to the Glue Role
 resource "aws_iam_role_policy_attachment" "glue_role_policy" {
   role       = aws_iam_role.glue_role.name
