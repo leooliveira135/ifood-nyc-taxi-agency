@@ -68,15 +68,16 @@ def create_glue_crawler(crawler_name: str, database_name: str, s3_path: str, aws
     except ClientError as e:
         logging.error(f"Error creating crawler {crawler_name}: {e}")
 
-def start_glue_crawler(crawler_name: str):
+def start_glue_crawler(crawler_name: str, aws_region: str):
     """
         Start a Glue crawler to catalog data in S3.
         Args:
             crawler_name (str): The name of the Glue crawler to start.
+            aws_region (str): The AWS region where the crawler will be created.
         Returns:
             None
     """
-    glue = boto3.client('glue')
+    glue = boto3.client('glue', region_name=aws_region)
     response = glue.start_crawler(Name=crawler_name)
 
     logging.info(f"Starting Glue crawler: {crawler_name}")
@@ -95,15 +96,16 @@ def start_glue_crawler(crawler_name: str):
 
     logging.info(f"Glue crawler {crawler_name} finished successfully.")
 
-def list_glue_db_tables(database_name: str) -> list:
+def list_glue_db_tables(database_name: str, aws_region: str) -> list:
     """
         List all tables in a Glue database.
         Args:
             database_name (str): The name of the Glue database.
+            aws_region (str): The AWS region where the crawler will be created.
         Returns:
             list: A list of table names in the database.
     """
-    glue = boto3.client('glue')
+    glue = boto3.client('glue', region_name=aws_region)
     db_list = glue.get_tables(DatabaseName=database_name)
     table_list = [table['Name'] for table in db_list['TableList']]
     logging.info(f"Tables in database {database_name}: {table_list}")

@@ -157,9 +157,13 @@ def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path, aw
             Key=f"{bucket_key}/{str(local_path).split('/')[-1]}"
         )
 
-        s3.head_object(Bucket=bucket_name, Key=bucket_key)
-
-        script_path = f"s3://{bucket_name}/{bucket_key}"
+        paginator = s3.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=bucket_key):
+            for obj in page.get('Contents', []):
+                key = obj['Key']
+                if key.endswith(str(local_path).split('/')[-1]):
+                    script_path = f"s3://{bucket_name}/{bucket_key}/{str(local_path).split('/')[-1]}"
+        
         logging.info(f"Upload completed successfully: {script_path}")
         return script_path
 
