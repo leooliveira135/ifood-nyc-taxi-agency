@@ -22,6 +22,7 @@ def main(spark: SparkSession):
     aws_credentials = get_aws_credentials(aws_profile_name)
     run_glue_catalog(aws_credentials)
 
+
 if __name__ == "__main__":
 
     spark = SparkSession.builder \

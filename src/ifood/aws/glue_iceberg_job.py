@@ -4,8 +4,6 @@ from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 from awsglue.job import Job
 from awsglue.utils import getResolvedOptions
-from ifood.vars import s3_stg_bucket
-from pyspark.sql import SparkSession
 
 logging.basicConfig(
     level=logging.INFO,
