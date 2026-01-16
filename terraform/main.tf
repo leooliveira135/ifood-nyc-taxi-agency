@@ -4,10 +4,10 @@ terraform {
 			source  = "hashicorp/aws"
 			version = "~> 5.0"
 		}
-	    pgp = {
-	      source = "ekristen/pgp"
-	      version = "0.2.4"
-	    }
+	  pgp = {
+	    source = "ekristen/pgp"
+	    version = "0.2.4"
+	  }
 	}
 }
 
@@ -15,6 +15,7 @@ data "aws_caller_identity" "current" {}
 
 provider "aws" {
 	region = var.aws_region
+  profile = "default"
 }
 
 locals {
@@ -287,7 +288,9 @@ resource "aws_iam_user_policy_attachment" "terraform_aws_policy" {
 
 # Attach AdministratorAccess to the existing terraform-aws user
 resource "aws_iam_user_policy_attachment" "admin_fix" {
-  user       = "terraform-aws"
+  for_each = local.users
+
+  user       = aws_iam_user.create_user[each.key].name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
