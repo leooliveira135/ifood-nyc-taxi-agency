@@ -116,7 +116,7 @@ resource "aws_athena_data_catalog" "aws_star_schema" {
   }
 }
 
-# # IAM Role for Glue Crawler
+# IAM Role for Glue Crawler
 resource "aws_iam_role" "glue_role" {
   name        = "glue-crawler-role"
   description = "Role for Glue Crawler to access S3 and Glue"
@@ -134,7 +134,7 @@ resource "aws_iam_role" "glue_role" {
   })
 }
 
-# # Managed IAM policy granting CloudWatch Logs write for Glue
+# Managed IAM policy granting CloudWatch Logs write for Glue
 resource "aws_iam_policy" "glue_cloudwatch_logs" {
   name        = "GlueCloudWatchLogsWrite-${var.aws_region}"
   description = "Allow AWS Glue to create log streams and put log events into /aws-glue/crawlers"
