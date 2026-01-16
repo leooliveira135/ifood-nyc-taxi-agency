@@ -131,17 +131,18 @@ def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=N
         logging.error(f"Failed to write data to Delta Lake at {path}: {e}")
         raise
 
-def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path):
+def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path, aws_region: str):
     """
-    Upload a file to an S3 bucket.
-    Args:
-        bucket_name (str): S3 bucket name
-        bucket_key (str): S3 prefix INCLUDING filename e.g. scripts/glue_iceberg_job.py
-        local_path (Path): Local file path
-    Returns:
-        None
+        Upload a file to an S3 bucket.
+        Args:
+            bucket_name (str): The name of the S3 bucket.
+            bucket_key (str): The S3 prefix including filename (e.g., scripts/glue_iceberg_job.py).
+            local_path (Path): The local file path to upload.
+            aws_region (str): The AWS region where the crawler will be created.
+        Returns:
+            script_path (str): The S3 key of the uploaded file.
     """
-    s3 = boto3.client('s3')
+    s3 = boto3.client('s3', region_name=aws_region)
     local_path = Path(local_path)
 
     if not local_path.is_file():
@@ -155,8 +156,12 @@ def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path):
             Bucket=bucket_name,
             Key=f"{bucket_key}/{str(local_path).split('/')[-1]}"
         )
-        
-        logging.info(f"Upload completed successfully")
+
+        s3.head_object(Bucket=bucket_name, Key=bucket_key)
+
+        script_path = f"s3://{bucket_name}/{bucket_key}"
+        logging.info(f"Upload completed successfully: {script_path}")
+        return script_path
 
     except ClientError as e:
         logging.error(f"""AWS error during upload: {e}\n

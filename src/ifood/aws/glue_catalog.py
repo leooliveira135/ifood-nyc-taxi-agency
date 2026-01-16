@@ -131,16 +131,19 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
     if isinstance(glue_job_path, Path):
         glue_job_path = glue_job_path.as_posix()
         
+    if not glue_job_path:
+        logging.error(f"{glue_job_path} is None — upload failed")
+        
     if not glue_job_path.startswith("s3://"):
         logging.error(f"Invalid ScriptLocation (must be s3://): {glue_job_path}")
-        return
 
     try:
         glue.get_job(JobName=job_name)
         logging.error(f"Glue job {job_name} already exists — skipping creation")
+        return
 
     except glue.exceptions.EntityNotFoundException:
-        logging.info(f"Glue job {job_name} not found — creating it")
+        logging.info(f"Glue job '{job_name}' not found — creating it")
 
     try:
 
@@ -175,7 +178,7 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
     except Exception as e:
         logging.error(f"Unexpected error while creating Glue job {job_name}")
 
-def run_glue_job(job_name:str, table_name: str, source_database: str, target_database: str, iceberg_location:str) -> str:
+def run_glue_job(job_name:str, table_name: str, source_database: str, target_database: str, iceberg_location:str, aws_region: str, source_path: str) -> str:
     """
         Run a Glue job for ETL processing.
         Args:
@@ -184,11 +187,13 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
             source_database (str): The source Glue database name.
             target_database (str): The target Glue database name.
             iceberg_location (str): The S3 location for Iceberg table data.
+            aws_region (str): The AWS region where the crawler will be created.
+            source_path (str): The S3 path where the data is stored.
         Returns:
             str: The job run ID.
     """
 
-    glue = boto3.client('glue')
+    glue = boto3.client('glue', region_name=aws_region)
 
     try:
         logging.info(f"Starting Glue job: {job_name}")
@@ -196,7 +201,8 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
                      Source database: {source_database}\n 
                      Table name: {table_name}\n 
                      Target database: {target_database}\n 
-                     Iceberg location: {iceberg_location}
+                     Iceberg location: {iceberg_location}\n 
+                     Source Path: {source_path}
                      """)
 
         response = glue.start_job_run(
@@ -205,7 +211,8 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
                 "--SOURCE_DATABASE": source_database,
                 "--TABLE_NAME": table_name,
                 "--TARGET_DATABASE": target_database,
-                "--ICEBERG_LOCATION": iceberg_location
+                "--ICEBERG_LOCATION": iceberg_location,
+                "--SOURCE_PATH": source_path
             },
         )
 

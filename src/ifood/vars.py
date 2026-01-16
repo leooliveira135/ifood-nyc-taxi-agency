@@ -43,7 +43,7 @@ glue_database = "ifood_nyc_taxi_agency"
 aws_glue_role = "glue-crawler-role"
 
 athena_output_queries = "s3://ifood-nyc-taxi-agency/athena/"
-iceberg_bucket = "ifood-nyc-taxi-agency/iceberg"
+iceberg_bucket = "s3://ifood-nyc-taxi-agency/iceberg"
 
 glue_iceberg_job = "ifood-glue-iceberg"
 glue_job_path = "ifood-nyc-taxi-agency/scripts"
