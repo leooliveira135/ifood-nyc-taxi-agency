@@ -278,20 +278,20 @@ resource "aws_iam_policy" "athena_glue_policy" {
   })
 }
 
-# # Attach policy to the terraform-aws user
+# Attach policy to the terraform-aws user
 resource "aws_iam_user_policy_attachment" "terraform_aws_policy" {
   for_each = local.users
   user       = aws_iam_user.create_user[each.key].name
   policy_arn = aws_iam_policy.athena_glue_policy.arn
 }
 
-# # Attach policy to the Glue Role
+# Attach policy to the Glue Role
 resource "aws_iam_role_policy_attachment" "glue_role_policy" {
   role       = aws_iam_role.glue_role.name
   policy_arn = aws_iam_policy.athena_glue_policy.arn
 }
 
-# # Attach the managed policy to the existing Glue role
+# Attach the managed policy to the existing Glue role
 resource "aws_iam_role_policy_attachment" "attach_glue_cwl" {
   role       = aws_iam_role.glue_role.name
   policy_arn = aws_iam_policy.glue_cloudwatch_logs.arn
@@ -300,7 +300,7 @@ resource "aws_iam_role_policy_attachment" "attach_glue_cwl" {
   depends_on = [aws_iam_role.glue_role, aws_iam_policy.glue_cloudwatch_logs]
 }
 
-# # Attach the managed policy to the existing Glue role
+# Attach the managed policy to the existing Glue role
 resource "aws_iam_role_policy_attachment" "attach_glue_job" {
   role       = aws_iam_role.glue_role.name
   policy_arn = aws_iam_policy.glue_cloudwatch_jobs.arn
