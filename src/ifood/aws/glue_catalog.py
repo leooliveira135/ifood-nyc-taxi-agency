@@ -111,7 +111,7 @@ def list_glue_db_tables(database_name: str, aws_region: str) -> list:
     logging.info(f"Tables in database {database_name}: {table_list}")
     return table_list
 
-def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_path: str, extra_py_files: str, glue_version: str="4.0", worker_type: str="G.1X", num_workers: int=5, timeout: int=60):
+def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_path: str, extra_py_files: str | None, glue_version: str="4.0", worker_type: str="G.1X", num_workers: int=5, timeout: int | None=None):
     """
         Create a Glue job for ETL processing.
         Args:
@@ -123,7 +123,7 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
             glue_version (str): The Glue version to use. Defaults to "4.0".
             worker_type (str): The type of worker to use. Defaults to "G.1X".
             num_workers (int): The number of workers to allocate. Defaults to 5.
-            timeout (int): The job timeout in minutes. Defaults to 60.
+            timeout (int | None): The job timeout in seconds. Defaults to 60.
         Returns:
             None
     """
@@ -148,31 +148,32 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
     except glue.exceptions.EntityNotFoundException:
         logging.info(f"Glue job '{job_name}' not found — creating it")
 
+    job_args = {
+        "Name":job_name,
+        "Role":role_arn,
+        "ExecutionProperty":{"MaxConcurrentRuns": 1},
+        "Command":{
+            "Name": "glueetl",
+            "ScriptLocation": glue_job_path,
+            "PythonVersion": "3"
+        },
+        "DefaultArguments":{
+            "--job-language": "python",
+            "--enable-glue-datacatalog": "true",
+            "--datalake-formats": "iceberg",
+            "--enable-metrics": "true",
+            "--enable-continuous-cloudwatch-log": "true",
+        },
+        "GlueVersion":glue_version,
+        "WorkerType":worker_type,
+        "NumberOfWorkers":num_workers,
+        "Timeout":timeout if timeout is not None else 60,
+    }
+    if extra_py_files:
+        job_args["DefaultArguments"]["--extra-py-files"] = extra_py_files
+
     try:
-
-        glue.create_job(
-            Name=job_name,
-            Role=role_arn,
-            ExecutionProperty={"MaxConcurrentRuns": 1},
-            Command={
-                "Name": "glueetl",
-                "ScriptLocation": glue_job_path,
-                "PythonVersion": "3"
-            },
-            DefaultArguments={
-                "--job-language": "python",
-                "--enable-glue-datacatalog": "true",
-                "--datalake-formats": "delta,iceberg",
-                "--enable-metrics": "true",
-                "--enable-continuous-cloudwatch-log": "true",
-                "--extra-py-files": extra_py_files,
-            },
-            GlueVersion=glue_version,
-            WorkerType=worker_type,
-            NumberOfWorkers=num_workers,
-            Timeout=timeout
-        )
-
+        glue.create_job(**job_args)
         logging.info(f"Glue job {job_name} created successfully")
 
     except ClientError as e:
@@ -224,7 +225,6 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
 
         logging.info(f"Glue job {job_name} started successfully")
         logging.info(f"Job Run ID: {job_run_id}")
-        logging.info(f"JobRun Arguments: {job_run['JobRun'].get('Arguments')}")  
 
         return job_run_id
     
@@ -236,7 +236,7 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
         logging.error(f"Unexpected error while starting Glue job {job_name}")
         raise
 
-def wait_for_glue_job_completion(glue_client, job_name: str, job_run_id: str, poll_seconds: int = 30, timeout_seconds: int | None = None,) -> Dict[str, Any]:
+def wait_for_glue_job_completion(job_name: str, job_run_id: str, aws_region: str, poll_seconds: int = 30, timeout_seconds: int | None = None,) -> Dict[str, Any]:
     """
         Block execution until an AWS Glue job run reaches a terminal state.
 
@@ -244,9 +244,9 @@ def wait_for_glue_job_completion(glue_client, job_name: str, job_run_id: str, po
         finishes or an optional timeout is reached.
 
         Args:
-            glue_client: Boto3 Glue client instance.
             job_name (str): Name of the Glue job.
             job_run_id (str): Identifier of the Glue job run.
+            aws_region (str): The AWS region where the crawler will be created.
             poll_seconds (int, optional): Interval (in seconds) between status checks. Defaults to 30 seconds.
             timeout_seconds (int, optional): Maximum time to wait for job completion. If None, waits indefinitely.
 
@@ -257,10 +257,12 @@ def wait_for_glue_job_completion(glue_client, job_name: str, job_run_id: str, po
             TimeoutError: If the job does not complete within timeout_seconds.
     """
 
+    glue = boto3.client('glue', region_name=aws_region)
+
     start_time = time.time()
 
     while True:
-        response = glue_client.get_job_run(
+        response = glue.get_job_run(
             JobName=job_name,
             RunId=job_run_id,
             PredecessorsIncluded=False,
