@@ -54,7 +54,7 @@ def main():
         )
 
         (
-            df.writeTo(f"{target_database}.{table_name}")
+            df.writeTo(f"glue_catalog.{target_database}.{table_name}")
             .using("iceberg")
             .tableProperty("format-version", "2")
             .option("location", iceberg_location)

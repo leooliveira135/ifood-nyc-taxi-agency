@@ -16,8 +16,8 @@ filter_year = "2023"
 aws_profile_name = "default"
 
 s3_raw_bucket = "ifood-nyc-taxi-agency-raw"
-s3_stg_bucket = "ifood-nyc-taxi-agency-stg/delta"
-s3_bucket = "ifood-nyc-taxi-agency/delta"
+s3_stg_bucket = "ifood-nyc-taxi-agency-stg/parquet"
+s3_bucket = "ifood-nyc-taxi-agency/parquet"
 
 headers = {
     # Critical: mimic curl/browser
