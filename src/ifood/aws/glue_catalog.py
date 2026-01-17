@@ -222,12 +222,6 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
 
         job_run_id = response["JobRunId"]
 
-        job_run = glue.get_job_run(
-            JobName=job_name,
-            RunId=job_run_id,
-            PredecessorsIncluded=False
-        )      
-
         logging.info(f"Glue job {job_name} started successfully")
         logging.info(f"Job Run ID: {job_run_id}")
         logging.info(f"JobRun Arguments: {job_run['JobRun'].get('Arguments')}")  
@@ -241,3 +235,48 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
     except Exception as e:
         logging.error(f"Unexpected error while starting Glue job {job_name}")
         raise
+
+def wait_for_glue_job_completion(glue_client, job_name: str, job_run_id: str, poll_seconds: int = 30, timeout_seconds: int | None = None,) -> Dict[str, Any]:
+    """
+        Block execution until an AWS Glue job run reaches a terminal state.
+
+        This function continuously polls the Glue job status until the job
+        finishes or an optional timeout is reached.
+
+        Args:
+            glue_client: Boto3 Glue client instance.
+            job_name (str): Name of the Glue job.
+            job_run_id (str): Identifier of the Glue job run.
+            poll_seconds (int, optional): Interval (in seconds) between status checks. Defaults to 30 seconds.
+            timeout_seconds (int, optional): Maximum time to wait for job completion. If None, waits indefinitely.
+
+        Returns:
+            Dict[str, Any]: Full JobRun metadata returned by AWS Glue.
+
+        Raises:
+            TimeoutError: If the job does not complete within timeout_seconds.
+    """
+
+    start_time = time.time()
+
+    while True:
+        response = glue_client.get_job_run(
+            JobName=job_name,
+            RunId=job_run_id,
+            PredecessorsIncluded=False,
+        )
+
+        job_run = response["JobRun"]
+        state = job_run["JobRunState"]
+
+        logging.info(f"Glue job {job_name} (run_id={job_run_id}) status: {state}")
+
+        if state in ("SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT"):
+            return job_run
+
+        if timeout_seconds is not None:
+            elapsed = time.time() - start_time
+            if elapsed > timeout_seconds:
+                logging.error(f"Glue job {job_name} ({job_run_id}) did not complete within {timeout_seconds} seconds")
+
+        time.sleep(poll_seconds)

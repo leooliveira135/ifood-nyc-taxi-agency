@@ -111,24 +111,24 @@ def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=N
         Returns:
             None
     """
-    logging.info(f"Writing data to Delta Lake at {path} with partitions {partition_list}")
+    logging.info(f"Writing data to Parquet at {path} with partitions {partition_list}")
     try:
         if partition_list:
             object_data.write \
-                .format("delta") \
+                .format("parquet") \
                 .option("overwriteSchema", "true") \
                 .mode("overwrite") \
                 .partitionBy(*partition_list) \
                 .save(path)
         else:
             object_data.write \
-                .format("delta") \
+                .format("parquet") \
                 .option("overwriteSchema", "true") \
                 .mode("append") \
                 .save(path)
-        logging.info(f"Data successfully written to Delta Lake at {path}")
+        logging.info(f"Data successfully written to Parquet at {path}")
     except Exception as e:
-        logging.error(f"Failed to write data to Delta Lake at {path}: {e}")
+        logging.error(f"Failed to write data to Parquet at {path}: {e}")
         raise
 
 def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path, aws_region: str):

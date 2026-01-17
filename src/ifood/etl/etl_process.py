@@ -50,8 +50,8 @@ def transform_data(spark: SparkSession, data: str, s3_path: str):
     logging.info(f"DataFrame loaded from {s3_path} with {df.count()} records.")
     df.show(5, truncate=False)
     df.printSchema()
-    delta_path = f"s3a://{s3_path}/{data.split('/')[-2]}"
-    write_data_into_s3(delta_path, df, partition_list=["source_date"])
+    parquet_path = f"s3a://{s3_path}/{data.split('/')[-2]}"
+    write_data_into_s3(parquet_path, df, partition_list=["source_date"])
     return df
 
 def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
@@ -72,8 +72,8 @@ def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
         df = df.withColumn("VendorID", col("VendorID").cast("integer").alias("VendorID"))
         df = df.withColumn("passenger_count", col("passenger_count").cast("integer").alias("passenger_count"))
     table_name = df.select('data_source').distinct().collect()[0][0].split('/')[-1].split('.')[0]
-    delta_path = f"s3a://{s3_path}/{'_'.join(table_name.split('_')[0:2])}_delta/{table_name.split('_')[-1].replace('-','_')}"
-    write_data_into_s3(delta_path, df)
+    parquet_path = f"s3a://{s3_path}/{'_'.join(table_name.split('_')[0:2])}_parquet/{table_name.split('_')[-1].replace('-','_')}"
+    write_data_into_s3(parquet_path, df)
     logging.info("Data loading completed.")
 
 def run_etl_process(spark: SparkSession) -> None:
