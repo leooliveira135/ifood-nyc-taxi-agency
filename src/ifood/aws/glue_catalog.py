@@ -111,7 +111,7 @@ def list_glue_db_tables(database_name: str, aws_region: str) -> list:
     logging.info(f"Tables in database {database_name}: {table_list}")
     return table_list
 
-def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_path: str, glue_version: str="4.0", worker_type: str="G.1X", num_workers: int=5, timeout: int=60):
+def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_path: str, extra_py_files: str, glue_version: str="4.0", worker_type: str="G.1X", num_workers: int=5, timeout: int=60):
     """
         Create a Glue job for ETL processing.
         Args:
@@ -119,6 +119,7 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
             account_id (str): The AWS account ID.
             aws_region (str): The AWS region where the crawler will be created.
             glue_job_path (str): The S3 path to the Glue job script.
+            extra_py_files (str | None): Optional S3 path to a .zip or .egg with Python dependencies. Example: s3://my-bucket/libs/my_libs.zip
             glue_version (str): The Glue version to use. Defaults to "4.0".
             worker_type (str): The type of worker to use. Defaults to "G.1X".
             num_workers (int): The number of workers to allocate. Defaults to 5.
@@ -163,7 +164,8 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
                 "--enable-glue-datacatalog": "true",
                 "--datalake-formats": "delta,iceberg",
                 "--enable-metrics": "true",
-                "--enable-continuous-cloudwatch-log": "true"
+                "--enable-continuous-cloudwatch-log": "true",
+                "--extra-py-files": extra_py_files,
             },
             GlueVersion=glue_version,
             WorkerType=worker_type,
@@ -219,14 +221,23 @@ def run_glue_job(job_name:str, table_name: str, source_database: str, target_dat
         )
 
         job_run_id = response["JobRunId"]
-        
+
+        job_run = glue.get_job_run(
+            JobName=job_name,
+            RunId=job_run_id,
+            PredecessorsIncluded=False
+        )      
+
         logging.info(f"Glue job {job_name} started successfully")
         logging.info(f"Job Run ID: {job_run_id}")
+        logging.info(f"JobRun Arguments: {job_run['JobRun'].get('Arguments')}")  
 
         return job_run_id
     
     except ClientError as e:
         logging.error(f"AWS ClientError while starting Glue job {job_name}")
+        raise
 
     except Exception as e:
         logging.error(f"Unexpected error while starting Glue job {job_name}")
+        raise
