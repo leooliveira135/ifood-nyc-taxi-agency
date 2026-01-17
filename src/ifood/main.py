@@ -17,11 +17,10 @@ def main(spark: SparkSession):
     logging.basicConfig(level=logging.INFO)
     logging.info("Starting data fetch process")
 
-    run_etl_process(spark)
+    #run_etl_process(spark)
 
     aws_credentials = get_aws_credentials(aws_profile_name)
     run_glue_catalog(aws_credentials)
-
 
 if __name__ == "__main__":
 

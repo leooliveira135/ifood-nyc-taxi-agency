@@ -20,6 +20,7 @@ def main():
         spark = glueContext.spark_session
         logger.info("Spark session created")
 
+        logger.info(f"sys.argv = {sys.argv}")
         args = getResolvedOptions(
             sys.argv,
             ["JOB_NAME", "SOURCE_DATABASE", "TABLE_NAME", "TARGET_DATABASE", "ICEBERG_LOCATION", "SOURCE_PATH"]
