@@ -37,15 +37,8 @@ def main(logger: logging):
         )
         logger.info(f"Reading Parquet table {source_path}")
 
-        dyf = glueContext.create_dynamic_frame.from_options(
-            connection_type="s3",
-            format="parquet",
-            connection_options={
-                "paths": [source_path],
-                "recurse": True,
-            },
-        )
-        df = dyf.toDF()
+        df = spark.read.parquet(source_path)
+        df.printSchema()
 
         logger.info(
             "Parquet table loaded successfully | rows=%s columns=%s",

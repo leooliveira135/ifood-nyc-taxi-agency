@@ -30,8 +30,8 @@ if __name__ == "__main__":
                         .config(
                             "spark.jars.packages",
                             "org.apache.hadoop:hadoop-aws:3.3.4,"
-                            "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
-                            "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.4.2"
+                            "org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.4.3,"
+                            "org.apache.iceberg:iceberg-aws-bundle:1.4.3,"
                         ) \
                         .config(
                             "spark.hadoop.fs.s3a.aws.credentials.provider",

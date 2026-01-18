@@ -4,6 +4,7 @@ from ifood.aws.s3_bucket import check_file_exists_in_s3, download_file_to_s3, re
 from ifood.vars import s3_raw_bucket, filename_list, filter_year, endpoint, s3_stg_bucket, s3_bucket, selected_columns, glue_database
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col, current_date, lit
+from pyspark.sql.types import TimestampNTZType
 
 def extract_data(endpoint: str, filename: str, date: str) -> str:
     """
@@ -47,6 +48,9 @@ def transform_data(spark: SparkSession, data: str, s3_path: str):
     df = df.withColumn("data_source", lit(data))
     source_date = data.split('/')[-1].split('.')[-2].split('_')[-1]
     df = df.withColumn("source_date", lit(source_date))
+    for field in df.schema.fields:
+        if isinstance(field.dataType, TimestampNTZType):
+            df = df.withColumn(field.name, col(field.name).cast("timestamp"))
     logging.info(f"DataFrame loaded from {s3_path} with {df.count()} records.")
     df.show(5, truncate=False)
     df.printSchema()
@@ -68,11 +72,9 @@ def load_data(df: DataFrame, s3_path: str, columns: list) -> None:
     valid_cols = [c for c in columns if c in existing]
     if valid_cols:
         df = df.select(valid_cols)
-    if ('VendorID' and 'passenger_count') and ('tpep_pickup_datetime' and 'tpep_dropoff_datetime') in valid_cols:
+    if ('VendorID' and 'passenger_count') in valid_cols:
         df = df.withColumn("VendorID", col("VendorID").cast("integer").alias("VendorID"))
         df = df.withColumn("passenger_count", col("passenger_count").cast("integer").alias("passenger_count"))
-        df = df.withColumn("tpep_pickup_datetime", col("tpep_pickup_datetime").cast("timestamp").alias("tpep_pickup_datetime"))
-        df = df.withColumn("tpep_dropoff_datetime", col("tpep_dropoff_datetime").cast("timestamp").alias("tpep_dropoff_datetime"))
     table_name = df.select('data_source').distinct().collect()[0][0].split('/')[-1].split('.')[0]
     parquet_path = f"s3a://{s3_path}/{'_'.join(table_name.split('_')[0:2])}_parquet/{table_name.split('_')[-1].replace('-','_')}"
     write_data_into_s3(parquet_path, df)
