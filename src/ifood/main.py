@@ -2,7 +2,7 @@ import logging
 from ifood.aws.credentials import get_aws_credentials
 from ifood.etl.etl_process import run_etl_process
 from ifood.etl.glue_setup import run_glue_catalog
-from ifood.vars import aws_profile_name
+from ifood.vars import aws_profile_name, iceberg_bucket
 from pyspark.sql import SparkSession
 
 def main(spark: SparkSession):
@@ -20,6 +20,7 @@ def main(spark: SparkSession):
     # run_etl_process(spark)
 
     aws_credentials = get_aws_credentials(aws_profile_name)
+    logging.info(f"AWS credentials used in this deploy: {aws_credentials['account_id']} and {aws_credentials['region']}")
     run_glue_catalog(aws_credentials)
 
 if __name__ == "__main__":
@@ -29,7 +30,8 @@ if __name__ == "__main__":
                         .config(
                             "spark.jars.packages",
                             "org.apache.hadoop:hadoop-aws:3.3.4,"
-                            "com.amazonaws:aws-java-sdk-bundle:1.12.262"
+                            "com.amazonaws:aws-java-sdk-bundle:1.12.262,"
+                            "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.4.2"
                         ) \
                         .config(
                             "spark.hadoop.fs.s3a.aws.credentials.provider",
@@ -49,7 +51,11 @@ if __name__ == "__main__":
                         ) \
                         .config(
                             "spark.sql.catalog.glue_catalog.warehouse",
-                            "s3://your-warehouse-bucket/iceberg/"
+                            iceberg_bucket
+                        ) \
+                        .config(
+                            "spark.sql.extensions",
+                            "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
                         ) \
                         .config("spark.hadoop.fs.s3a.profile", aws_profile_name) \
                         .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \

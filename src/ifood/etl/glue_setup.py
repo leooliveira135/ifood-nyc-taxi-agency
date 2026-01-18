@@ -54,9 +54,23 @@ def iceberg_setup(aws_region: str, account_id: str) -> None:
         iceberg_path = f"{iceberg_bucket}/{table}"
         glue_table_job = f"{glue_iceberg_job}-{table}"
         logging.info(f"Creating Glue Job for Iceberg tables {glue_table_job}")
-        create_glue_job(glue_table_job, account_id, aws_region, glue_script, "s3://ifood-nyc-taxi-agency/scripts/ifood_libs.zip",600)
+        create_glue_job(
+            job_name=glue_table_job, 
+            account_id=account_id, 
+            aws_region=aws_region, 
+            glue_job_path=glue_script,
+            extra_py_files="s3://ifood-nyc-taxi-agency/scripts/ifood_libs.zip",
+            timeout=10
+        )
         logging.info(f"Starting AWS Glue Job for the Iceberg table {table}...")
-        job_run_id = run_glue_job(glue_table_job, table, glue_database_stg, glue_database, iceberg_path, aws_region, source_path)
+        job_arguments = {
+            "--SOURCE_DATABASE": glue_database_stg,
+            "--TABLE_NAME": table,
+            "--TARGET_DATABASE": glue_database,
+            "--ICEBERG_LOCATION": iceberg_path,
+            "--SOURCE_PATH": source_path,
+        }
+        job_run_id = run_glue_job(glue_table_job, job_arguments, aws_region)
         job_status = wait_for_glue_job_completion(glue_table_job, job_run_id, aws_region, 20, 3600)
         logging.info(f"AWS Glue Job for the Iceberg table {table} completed with status {job_status}...")
 
