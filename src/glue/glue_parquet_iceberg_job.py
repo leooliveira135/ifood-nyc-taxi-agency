@@ -1,6 +1,7 @@
 import sys
 import logging
 from pyspark.context import SparkContext
+from pyspark.sql.functions import col
 from awsglue.context import GlueContext
 from awsglue.job import Job
 from awsglue.utils import getResolvedOptions
@@ -46,6 +47,10 @@ def main(logger: logging):
             },
         )
         df = dyf.toDF()
+
+        for field in df.schema.fields:
+            if field.dataType.typeName() == "timestamp_ntz":
+                df = df.withColumn(field.name, col(field.name).cast("timestamp"))
 
         logger.info(
             "Parquet table loaded successfully | rows=%s columns=%s",
