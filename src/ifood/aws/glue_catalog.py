@@ -154,8 +154,9 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
         "spark.sql.catalog.glue_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
         "spark.sql.catalog.glue_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
         f"spark.sql.catalog.glue_catalog.warehouse={iceberg_bucket}",
-        "spark.sql.parquet.timestampNTZ.enabled=false",
+        "spark.sql.timestampType=TIMESTAMP",
         "spark.sql.parquet.enableVectorizedReader=false",
+        "spark.jars.packages=org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.4.3,org.apache.iceberg:iceberg-aws-bundle:1.4.3"
     ]
     
     default_arguments = {
