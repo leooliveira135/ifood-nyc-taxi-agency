@@ -2,7 +2,7 @@ import boto3
 import logging
 import time
 from botocore.exceptions import ClientError
-from ifood.vars import aws_glue_role
+from ifood.vars import aws_glue_role, iceberg_bucket
 from pathlib import Path
 
 def create_glue_database(database_name: str, aws_region: str) -> None:
@@ -148,93 +148,86 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
     except glue.exceptions.EntityNotFoundException:
         logging.info(f"Glue job '{job_name}' not found — creating it")
 
-    job_args = {
-        "Name":job_name,
-        "Role":role_arn,
-        "ExecutionProperty":{"MaxConcurrentRuns": 1},
-        "Command":{
-            "Name": "glueetl",
-            "ScriptLocation": glue_job_path,
-            "PythonVersion": "3"
-        },
-        "DefaultArguments":{
-            "--job-language": "python",
-            "--enable-glue-datacatalog": "true",
-            "--datalake-formats": "iceberg",
-            "--enable-metrics": "true",
-            "--enable-continuous-cloudwatch-log": "true",
-        },
-        "GlueVersion":glue_version,
-        "WorkerType":worker_type,
-        "NumberOfWorkers":num_workers,
-        "Timeout":timeout if timeout is not None else 60,
+    SPARK_CONFS = [
+        "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+        "spark.sql.catalog.glue_catalog=org.apache.iceberg.spark.SparkCatalog",
+        "spark.sql.catalog.glue_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
+        "spark.sql.catalog.glue_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
+        f"spark.sql.catalog.glue_catalog.warehouse={iceberg_bucket}",
+        "spark.sql.parquet.timestampNTZ.enabled=false",
+        "spark.sql.parquet.enableVectorizedReader=false",
+    ]
+    
+    default_arguments = {
+        "--job-language": "python",
+        "--enable-glue-datacatalog": "true",
+        "--datalake-formats": "iceberg",
+        "--enable-metrics": "true",
+        "--enable-continuous-cloudwatch-log": "true",
     }
+    
+    for i, conf in enumerate(SPARK_CONFS):
+        key = "--conf" if i == 0 else f"--conf{i}"
+        default_arguments[key] = conf
+
     if extra_py_files:
-        job_args["DefaultArguments"]["--extra-py-files"] = extra_py_files
+        default_arguments["--extra-py-files"] = extra_py_files
 
     try:
-        glue.create_job(**job_args)
+        glue.create_job( 
+            Name=job_name,
+            Role=role_arn,
+            ExecutionProperty={"MaxConcurrentRuns": 1},
+            Command={
+                "Name": "glueetl",
+                "ScriptLocation": glue_job_path,
+                "PythonVersion": "3"
+            },
+            DefaultArguments=default_arguments,
+            GlueVersion=glue_version,
+            WorkerType=worker_type,
+            NumberOfWorkers=num_workers,
+            Timeout=timeout if timeout is not None else 60,
+        )
         logging.info(f"Glue job {job_name} created successfully")
 
     except ClientError as e:
-        logging.error(f"""AWS ClientError while creating Glue job {job_name}\n
-                      {e.response['Error']['Code']} - {e.response['Error']['Message']}""")
+        logging.error(f"AWS ClientError while creating Glue job {job_name}: {e.response['Error']['Code']} - {e.response['Error']['Message']}")
+        raise
 
-    except Exception as e:
-        logging.error(f"Unexpected error while creating Glue job {job_name}")
+    except Exception:
+        logging.exception(f"Unexpected error while creating Glue job {job_name}")
+        raise
 
-def run_glue_job(job_name:str, table_name: str, source_database: str, target_database: str, iceberg_location:str, aws_region: str, source_path: str) -> str:
+def run_glue_job(job_name:str, arguments: dict, aws_region: str) -> str:
     """
         Run a Glue job for ETL processing.
         Args:
             job_name (str): The name of the Glue job to run.
-            table_name (str): The name of the table sent to Glue job.
-            source_database (str): The source Glue database name.
-            target_database (str): The target Glue database name.
-            iceberg_location (str): The S3 location for Iceberg table data.
+            arguments (dict): Dictionary of Glue job arguments (must include required --KEY params).
             aws_region (str): The AWS region where the crawler will be created.
-            source_path (str): The S3 path where the data is stored.
         Returns:
             str: The job run ID.
     """
-
+    
     glue = boto3.client('glue', region_name=aws_region)
 
-    try:
-        logging.info(f"Starting Glue job: {job_name}")
-        logging.info(f"""Job arguments\n 
-                     Source database: {source_database}\n 
-                     Table name: {table_name}\n 
-                     Target database: {target_database}\n 
-                     Iceberg location: {iceberg_location}\n 
-                     Source Path: {source_path}
-                     """)
+    logging.info(f"Starting Glue job: {job_name}")
+    logging.info("Job arguments:")
+    for k, v in arguments.items():
+        logging.info(f"  {k}: {v}")
 
-        response = glue.start_job_run(
-            JobName=job_name,
-            Arguments={
-                "--SOURCE_DATABASE": source_database,
-                "--TABLE_NAME": table_name,
-                "--TARGET_DATABASE": target_database,
-                "--ICEBERG_LOCATION": iceberg_location,
-                "--SOURCE_PATH": source_path
-            },
-        )
+    response = glue.start_job_run(
+        JobName=job_name,
+        Arguments=arguments,
+    )
 
-        job_run_id = response["JobRunId"]
-
-        logging.info(f"Glue job {job_name} started successfully")
-        logging.info(f"Job Run ID: {job_run_id}")
-
-        return job_run_id
+    job_run_id = response["JobRunId"]
     
-    except ClientError as e:
-        logging.error(f"AWS ClientError while starting Glue job {job_name}")
-        raise
-
-    except Exception as e:
-        logging.error(f"Unexpected error while starting Glue job {job_name}")
-        raise
+    logging.info(f"Glue job {job_name} started successfully")
+    logging.info(f"Job Run ID: {job_run_id}")
+    
+    return job_run_id
 
 def wait_for_glue_job_completion(job_name: str, job_run_id: str, aws_region: str, poll_seconds: int = 30, timeout_seconds: int | None = None,) -> Dict[str, Any]:
     """

@@ -48,5 +48,5 @@ iceberg_bucket = "s3://ifood-nyc-taxi-agency/iceberg"
 glue_iceberg_job = "ifood-glue-iceberg"
 glue_job_path = "ifood-nyc-taxi-agency/scripts"
 glue_zip_path = project_root / "ifood_libs.zip"
-glue_iceberg_job_path = project_root / "src" / "ifood" / "aws" / "glue_iceberg_job.py"
+glue_iceberg_job_path = project_root / "src" / "glue" / "glue_iceberg_job.py"
 

@@ -5,20 +5,16 @@ from awsglue.context import GlueContext
 from awsglue.job import Job
 from awsglue.utils import getResolvedOptions
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-)
-logger = logging.getLogger("delta_to_iceberg")
-
-def main():
+def main(logger: logging):
     try:
-        logger.info("Starting Delta → Iceberg Glue job")
+        logger.info("Starting Parquet → Iceberg Glue job")
 
         sc = SparkContext()
         glueContext = GlueContext(sc)
         spark = glueContext.spark_session
         logger.info("Spark session created")
+
+        logger.info(f"Vectorized reader: {spark.conf.get('spark.sql.parquet.enableVectorizedReader')}")
 
         logger.info(f"sys.argv = {sys.argv}")
         args = getResolvedOptions(
@@ -39,12 +35,20 @@ def main():
             "Job arguments | source_database=%s table_name=%s target_database=%s iceberg_location=%s source_path=%s",
             source_database, table_name, target_database, iceberg_location, source_path
         )
-        logger.info(f"Reading Delta table {source_path}")
+        logger.info(f"Reading Parquet table {source_path}")
 
-        df = spark.read.format("delta").load(source_path)
+        dyf = glueContext.create_dynamic_frame.from_options(
+            connection_type="s3",
+            format="parquet",
+            connection_options={
+                "paths": [source_path],
+                "recurse": True,
+            },
+        )
+        df = dyf.toDF()
 
         logger.info(
-            "Delta table loaded successfully | rows=%s columns=%s",
+            "Parquet table loaded successfully | rows=%s columns=%s",
             df.count(),
             len(df.columns)
         )
@@ -65,12 +69,20 @@ def main():
 
         logger.info("Iceberg table written successfully")
 
-        logger.info("Delta → Iceberg conversion completed")
+        logger.info("Parquet → Iceberg conversion completed")
 
-    except Exception as e:
-        logger.exception("Delta → Iceberg job failed")
-        raise RuntimeError("Glue job failed") from e
+    except Exception:
+        logger.exception("Parquet → Iceberg job failed")
+        raise
+
     
 if __name__ == "__main__":
-    main()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    )
+    logger = logging.getLogger("Parquet_to_iceberg")
+
+    main(logger)
 
