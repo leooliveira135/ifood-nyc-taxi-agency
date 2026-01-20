@@ -5,12 +5,13 @@ from botocore.exceptions import ClientError
 from ifood.vars import aws_glue_role, iceberg_bucket
 from pathlib import Path
 
-def create_glue_database(database_name: str, aws_region: str) -> None:
+def create_glue_database(database_name: str, aws_region: str, location: str=None) -> None:
     """
         Create a Glue database if it does not exist.
         Args:
             database_name (str): The name of the Glue database to create.
             aws_region (str): The AWS region where the database will be created.
+            location (str | None, optional): Optional S3 location URI for the database (e.g., "s3://my-data-lake/warehouse/"). If None, Glue will manage the database without a fixed location.
         Returns:
             None
     """
@@ -21,12 +22,16 @@ def create_glue_database(database_name: str, aws_region: str) -> None:
             logging.info(f"Glue database {database_name} already exists.")
             return
         
-        logging.info(f"Creating Glue database: {database_name}")
-        glue.create_database(
-            DatabaseInput={
+        database_input = {
                 'Name': database_name,
                 'Description': f'Database for {database_name} athena schema.'
-            }
+        }
+        if location:
+            database_input["LocationUri"] = location
+        
+        logging.info(f"Creating Glue database: {database_name}")
+        glue.create_database(
+            DatabaseInput=database_input
         )
         logging.info(f"Glue database {database_name} created successfully.")
     except Exception as e:
@@ -154,9 +159,10 @@ def create_glue_job(job_name:str, account_id: str, aws_region: str, glue_job_pat
         "spark.sql.catalog.glue_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
         "spark.sql.catalog.glue_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
         f"spark.sql.catalog.glue_catalog.warehouse={iceberg_bucket}",
-        "spark.sql.timestampType=TIMESTAMP",
-        "spark.sql.parquet.enableVectorizedReader=false",
-        "spark.jars.packages=org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.4.3,org.apache.iceberg:iceberg-aws-bundle:1.4.3"
+        "spark.sql.defaultCatalog=glue_catalog",
+        "spark.sql.hive.convertMetastoreParquet=false",
+        "hive.exec.dynamic.partition=true",
+        "hive.exec.dynamic.partition.mode=nonstrict"
     ]
     
     default_arguments = {

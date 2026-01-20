@@ -3,7 +3,7 @@ import time
 from ifood.api.zip_folder import zip_folder, unzip_file
 from ifood.aws.glue_catalog import create_glue_database, create_glue_crawler, start_glue_crawler, list_glue_db_tables, create_glue_job, run_glue_job, wait_for_glue_job_completion
 from ifood.aws.s3_bucket import upload_file_s3_bucket
-from ifood.vars import glue_database, glue_database_stg, s3_stg_bucket, glue_iceberg_job, glue_job_path, iceberg_bucket, glue_iceberg_job_path, glue_zip_path
+from ifood.vars import glue_database, glue_database_stg, s3_stg_bucket, s3_bucket, glue_iceberg_job, glue_job_path, iceberg_bucket, glue_iceberg_job_path, glue_zip_path
 
 def glue_setup(aws_region: str, account_id: str) -> None:
     """
@@ -17,6 +17,8 @@ def glue_setup(aws_region: str, account_id: str) -> None:
     logging.info("Setting up AWS Glue database...")
     logging.info(f"Creating Glue crawler for staging database {glue_database_stg} in {aws_region}...")
     create_glue_database(glue_database_stg, aws_region)
+    logging.info(f"Creating Glue crawler for staging database {glue_database} in {aws_region}...")
+    create_glue_database(glue_database, aws_region, iceberg_bucket)
     logging.info("AWS Glue databases created successfully.")
     crawler_name_stg = f"{glue_database_stg}_crawler"
     s3_path_stg = f"s3://{s3_stg_bucket}/"
@@ -50,7 +52,7 @@ def iceberg_setup(aws_region: str, account_id: str) -> None:
     logging.info("AWS Glue Job created successfully.")
     table_list = list_glue_db_tables(glue_database_stg, aws_region)
     for table in table_list:
-        source_path = f"s3://{s3_stg_bucket}/{table}"
+        source_path = f"s3://{s3_bucket}/{table}_parquet"
         iceberg_path = f"{iceberg_bucket}/{table}"
         glue_table_job = f"{glue_iceberg_job}-{table}"
         logging.info(f"Creating Glue Job for Iceberg tables {glue_table_job}")
