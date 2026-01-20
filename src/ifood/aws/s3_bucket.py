@@ -4,6 +4,7 @@ import logging
 import time
 from botocore.exceptions import ClientError
 from ifood.vars import headers
+from pathlib import Path
 from pyspark.sql import DataFrame
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -110,22 +111,65 @@ def write_data_into_s3(path: str, object_data: DataFrame, partition_list: list=N
         Returns:
             None
     """
-    logging.info(f"Writing data to Delta Lake at {path} with partitions {partition_list}")
+    logging.info(f"Writing data to Parquet at {path} with partitions {partition_list}")
     try:
         if partition_list:
             object_data.write \
-                .format("delta") \
+                .format("parquet") \
                 .option("overwriteSchema", "true") \
                 .mode("overwrite") \
                 .partitionBy(*partition_list) \
                 .save(path)
         else:
             object_data.write \
-                .format("delta") \
+                .format("parquet") \
                 .option("overwriteSchema", "true") \
                 .mode("append") \
                 .save(path)
-        logging.info(f"Data successfully written to Delta Lake at {path}")
+        logging.info(f"Data successfully written to Parquet at {path}")
     except Exception as e:
-        logging.error(f"Failed to write data to Delta Lake at {path}: {e}")
+        logging.error(f"Failed to write data to Parquet at {path}: {e}")
         raise
+
+def upload_file_s3_bucket(bucket_name: str, bucket_key:str, local_path: Path, aws_region: str):
+    """
+        Upload a file to an S3 bucket.
+        Args:
+            bucket_name (str): The name of the S3 bucket.
+            bucket_key (str): The S3 prefix including filename (e.g., scripts/glue_iceberg_job.py).
+            local_path (Path): The local file path to upload.
+            aws_region (str): The AWS region where the crawler will be created.
+        Returns:
+            script_path (str): The S3 key of the uploaded file.
+    """
+    s3 = boto3.client('s3', region_name=aws_region)
+    local_path = Path(local_path)
+
+    if not local_path.is_file():
+        logging.error(f"Glue script not found in {local_path}")
+    
+    logging.info(f"Uploading {local_path} to s3://{bucket_name}/{bucket_key}/{str(local_path).split('/')[-1]}")
+
+    try:
+        s3.upload_file(
+            Filename=local_path.as_posix(),
+            Bucket=bucket_name,
+            Key=f"{bucket_key}/{str(local_path).split('/')[-1]}"
+        )
+
+        paginator = s3.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=bucket_key):
+            for obj in page.get('Contents', []):
+                key = obj['Key']
+                if key.endswith(str(local_path).split('/')[-1]):
+                    script_path = f"s3://{bucket_name}/{bucket_key}/{str(local_path).split('/')[-1]}"
+        
+        logging.info(f"Upload completed successfully: {script_path}")
+        return script_path
+
+    except ClientError as e:
+        logging.error(f"""AWS error during upload: {e}\n
+                      {e.response['Error']['Code']} - {e.response['Error']['Message']}""")
+
+    except Exception as e:
+        logging.error(f"Unexpected error during upload: {e}")

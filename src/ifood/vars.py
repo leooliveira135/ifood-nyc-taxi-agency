@@ -1,3 +1,7 @@
+from pathlib import Path
+
+project_root = Path(__name__).resolve().parent
+
 endpoint = "https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page"
 
 filename_list = [
@@ -12,8 +16,8 @@ filter_year = "2023"
 aws_profile_name = "default"
 
 s3_raw_bucket = "ifood-nyc-taxi-agency-raw"
-s3_stg_bucket = "ifood-nyc-taxi-agency-stg/delta"
-s3_bucket = "ifood-nyc-taxi-agency/delta"
+s3_stg_bucket = "ifood-nyc-taxi-agency-stg/parquet"
+s3_bucket = "ifood-nyc-taxi-agency/parquet"
 
 headers = {
     # Critical: mimic curl/browser
@@ -37,3 +41,12 @@ selected_columns = [
 glue_database_stg = "ifood_nyc_taxi_agency_stg"
 glue_database = "ifood_nyc_taxi_agency"
 aws_glue_role = "glue-crawler-role"
+
+athena_output_queries = "s3://ifood-nyc-taxi-agency/athena/"
+iceberg_bucket = "s3://ifood-nyc-taxi-agency/iceberg"
+
+glue_iceberg_job = "ifood-glue-iceberg"
+glue_job_path = "ifood-nyc-taxi-agency/scripts"
+glue_zip_path = project_root / "ifood_libs.zip"
+glue_iceberg_job_path = project_root / "src" / "glue" / "glue_parquet_iceberg_job.py"
+

@@ -4,10 +4,10 @@ terraform {
 			source  = "hashicorp/aws"
 			version = "~> 5.0"
 		}
-	    pgp = {
-	      source = "ekristen/pgp"
-	      version = "0.2.4"
-	    }
+	  pgp = {
+	    source = "ekristen/pgp"
+	    version = "0.2.4"
+	  }
 	}
 }
 
@@ -15,6 +15,7 @@ data "aws_caller_identity" "current" {}
 
 provider "aws" {
 	region = var.aws_region
+  profile = "default"
 }
 
 locals {
@@ -156,6 +157,30 @@ resource "aws_iam_policy" "glue_cloudwatch_logs" {
   })
 }
 
+resource "aws_iam_policy" "glue_cloudwatch_jobs" {
+  name        = "GlueCloudWatchLogsJobs-${var.aws_region}"
+  description = "Allow AWS Glue jobs to write CloudWatch logs"
+  policy      = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "AllowGlueJobLogs",
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents"
+        ],
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws-glue/jobs/*",
+          "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws-glue/jobs/*:*"
+        ]
+      }
+    ]
+  })
+}
+
 # IAM Policy for Glue and Athena access
 resource "aws_iam_policy" "athena_glue_policy" {
   name        = "athena-glue-dbt-policy"
@@ -199,7 +224,11 @@ resource "aws_iam_policy" "athena_glue_policy" {
           "glue:GetPartition",
           "glue:GetPartitions",
           "glue:GetPartitionIndexes",
-          "glue:BatchGetPartition"
+          "glue:BatchGetPartition",
+          "glue:GetJob",
+          "glue:CreateJob",
+          "glue:UpdateJob",
+          "glue:DeleteJob"
         ]
         Resource = "*"
       },
@@ -229,7 +258,8 @@ resource "aws_iam_policy" "athena_glue_policy" {
           "s3:DeleteObject",
           "s3:ListBucket",
           "s3:GetBucketVersioning",
-          "s3:ListBucketVersions"
+          "s3:ListBucketVersions",
+          "s3:GetBucketLocation"
         ]
         Resource = [
           "arn:aws:s3:::ifood-nyc-taxi-agency-raw",
@@ -256,6 +286,14 @@ resource "aws_iam_user_policy_attachment" "terraform_aws_policy" {
   policy_arn = aws_iam_policy.athena_glue_policy.arn
 }
 
+# Attach AdministratorAccess to the existing terraform-aws user
+resource "aws_iam_user_policy_attachment" "admin_fix" {
+  for_each = local.users
+
+  user       = aws_iam_user.create_user[each.key].name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
 # Attach policy to the Glue Role
 resource "aws_iam_role_policy_attachment" "glue_role_policy" {
   role       = aws_iam_role.glue_role.name
@@ -269,4 +307,13 @@ resource "aws_iam_role_policy_attachment" "attach_glue_cwl" {
 
   # ensure role exists before attachment
   depends_on = [aws_iam_role.glue_role, aws_iam_policy.glue_cloudwatch_logs]
+}
+
+# Attach the managed policy to the existing Glue role
+resource "aws_iam_role_policy_attachment" "attach_glue_job" {
+  role       = aws_iam_role.glue_role.name
+  policy_arn = aws_iam_policy.glue_cloudwatch_jobs.arn
+
+  # ensure role exists before attachment
+  depends_on = [aws_iam_role.glue_role, aws_iam_policy.glue_cloudwatch_jobs]
 }

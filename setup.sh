@@ -1,4 +1,6 @@
 project_path='/home/leonardooliveira/Documentos/github/ifood-nyc-taxi-agency' #change it to your machine path
+cd $project_path
+export PYTHONPATH=$PATH:$(pwd)
 
 # enable the sh files to be run
 chmod 744 *.sh
@@ -19,7 +21,6 @@ else
     echo "Java not found in PATH, please check the installation"
     exit 1
 fi
-
 
 # install terraform into the local environment
 # this process was made for FEDORA linux distribuiton, here's the doc for linux: https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli
