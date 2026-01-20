@@ -76,11 +76,13 @@ def athena_wait_for_query_completion(athena_client: boto3.client, query_executio
     while True:
         response = athena_client.get_query_execution(QueryExecutionId=query_execution_id)
         state = response['QueryExecution']['Status']['State']
+        status = response["QueryExecution"]["Status"]
         if state in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
             logging.info(f"Athena query execution {query_execution_id} completed with state: {state}")
             if state != 'SUCCEEDED':
-                raise Exception(f"Athena query execution failed with state: {state}")
-            break
+                reason = status.get("StateChangeReason", "Unknown Athena error")
+                raise RuntimeError(f"Athena query execution failed with state: {state} and the following reason: {reason}")
+            return
         else:
             logging.info(f"Athena query execution {query_execution_id} is still running. Waiting...")
             time.sleep(5)
