@@ -17,7 +17,7 @@ def main(spark: SparkSession):
     logging.basicConfig(level=logging.INFO)
     logging.info("Starting data fetch process")
 
-    run_etl_process(spark)
+    # run_etl_process(spark)
 
     aws_credentials = get_aws_credentials(aws_profile_name)
     logging.info(f"AWS credentials used in this deploy: {aws_credentials['account_id']} and {aws_credentials['region']}")
@@ -30,7 +30,7 @@ if __name__ == "__main__":
                         .config(
                             "spark.jars.packages",
                             "org.apache.hadoop:hadoop-aws:3.3.4,"
-                            "org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.4.3,"
+                            "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.4.3,"
                             "org.apache.iceberg:iceberg-aws-bundle:1.4.3,"
                         ) \
                         .config(

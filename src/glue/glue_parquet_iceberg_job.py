@@ -14,8 +14,6 @@ def main(logger: logging):
         spark = glueContext.spark_session
         logger.info("Spark session created")
 
-        logger.info(f"Vectorized reader: {spark.conf.get('spark.sql.parquet.enableVectorizedReader')}")
-
         logger.info(f"sys.argv = {sys.argv}")
         args = getResolvedOptions(
             sys.argv,
@@ -35,9 +33,16 @@ def main(logger: logging):
             "Job arguments | source_database=%s table_name=%s target_database=%s iceberg_location=%s source_path=%s",
             source_database, table_name, target_database, iceberg_location, source_path
         )
-        logger.info(f"Reading Parquet table {source_path}")
 
-        df = spark.read.parquet(source_path)
+        df = (
+            spark.read
+            .option("recursiveFileLookup", "true")
+            .parquet(source_path)
+        )
+
+        if df.rdd.isEmpty():
+            logging.error(f"No Parquet data found at {source_path}")
+
         df.printSchema()
 
         logger.info(
@@ -50,13 +55,40 @@ def main(logger: logging):
             target_database, table_name
         )
 
-        (
-            df.writeTo(f"glue_catalog.{target_database}.{table_name}")
-            .using("iceberg")
-            .tableProperty("format-version", "2")
-            .option("location", iceberg_location)
-            .createOrReplace()
+        partition_cols = []
+        if "source_date" in df.columns:
+            partition_cols.append("source_date")
+
+        logger.info(f"Detected partition columns: {partition_cols}")
+        
+        table = f"{target_database}.{table_name}"
+
+        table_exists = (
+            spark.sql(f"SHOW TABLES IN {target_database}")
+            .filter(f"tableName = '{table}'")
+            .count() > 0
         )
+
+        if not table_exists:
+            logger.info(f"Creating Iceberg table {table}")
+
+            (
+                df.writeTo(table)
+                .tableProperty("format-version", "2")
+                .option("location", iceberg_location)
+                .create()
+            )
+
+            logger.info("Adding Iceberg partition spec: source_date")
+
+            spark.sql(f"""
+                ALTER TABLE {table}
+                ADD PARTITION FIELD source_date
+            """)
+
+        else:
+            logger.info(f"Appending to Iceberg table {table}")
+            df.writeTo(table).append()
 
         job.commit()
 
