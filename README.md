@@ -39,39 +39,45 @@ Although the name references *iFood*, this is a **technical case study** and lea
 
 ```
 ifood-nyc-taxi-agency/
-├── analysis/                    # Jupyter notebooks with exploratory analysis
-│   ├── average_passager_count.ipynb
-│   └── average_total_amount.ipynb
+├── analysis/                            # Jupyter notebooks for exploratory & analytical queries
+│   ├── average_passager_count.ipynb    # Avg passenger count analysis
+│   └── average_total_amount.ipynb      # Avg trip total amount analysis
 │
-├── src/                         # Application source code
-│   ├── requirements.txt
-│   └── ifood/
-│       ├── main.py              # Project entry point
-│       ├── vars.py              # Global configuration & constants
-│       │
-│       ├── api/                 # Data ingestion layer
-│       │   └── fetch_data.py
-│       │
-│       ├── etl/                 # ETL & Glue jobs
-│       │   ├── glue_setup.py
-│       │   └── etl_process.py
-│       │
-│       └── aws/                 # AWS integrations
-│           ├── credentials.py
-│           ├── s3_bucket.py
-│           ├── glue_catalog.py
-│           ├── glue_iceberg_job.py
-│           └── athena_queries.py
+├── src/                                # Python source code (package root)
+│   ├── glue/                           # AWS Glue job scripts
+│   │   └── glue_parquet_iceberg_job.py # Parquet → Iceberg Glue job
+│   │
+│   ├── ifood/                          # Main application package
+│   │   ├── api/                        # Data ingestion layer
+│   │   │   ├── fetch_data.py           # Fetch NYC Taxi datasets
+│   │   │   └── zip_folder.py           # Compress and package data for upload
+│   │   │
+│   │   ├── aws/                        # AWS service integrations
+│   │   │   ├── athena_queries.py       # Athena SQL queries
+│   │   │   ├── credentials.py          # AWS credential handling
+│   │   │   ├── glue_catalog.py         # Glue Catalog setup
+│   │   │   └── s3_bucket.py            # S3 bucket operations
+│   │   │
+│   │   ├── etl/                        # ETL orchestration logic
+│   │   │   ├── etl_process.py          # Main ETL workflow
+│   │   │   └── glue_setup.py           # Glue jobs & resources bootstrap
+│   │   │
+│   │   ├── __init__.py                 # Package initializer
+│   │   ├── main.py                     # Application entry point
+│   │   └── vars.py                     # Global configuration and constants
+│   │
+│   └── requirements.txt                # Python runtime dependencies
 │
-├── terraform/                   # Infrastructure as Code
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── output.tf
-│   └── terraform_admin_policy.txt
+├── terraform/                          # Infrastructure as Code (AWS)
+│   ├── main.tf                         # Core infrastructure definitions
+│   ├── variables.tf                   # Input variables
+│   ├── output.tf                      # Terraform outputs
+│   └── terraform_admin_policy.txt     # IAM policy for bootstrap/admin user
 │
-├── setup.sh                     # Local environment bootstrap
-├── README.md
-└── LICENSE
+├── pyproject.toml                     # Python packaging & build configuration
+├── setup.sh                           # Local environment bootstrap script
+├── README.md                          # Project documentation
+└── LICENSE                            # Project license
 ```
 
 ---
